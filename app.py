@@ -678,13 +678,14 @@ def card_verification_status(card):
 
 
 def card_source_url(card):
-    """يُرجع رابط المصدر إن وُجد."""
-    override = VERIFICATION_OVERRIDES.get(card.get("source", ""), {})
-    if override.get("url"):
-        return override["url"]
-    return f"https://dorar.net/search?q={card.get('text','')[:25]}"
-
-
+    """يُرجع رابط بحث مباشر في الدرر السنية بالنص — يعمل دائماً."""
+    from urllib.parse import quote
+    text = card.get("text", "").strip()
+    if not text:
+        return "https://dorar.net/"
+    # نأخذ أول 60 حرفاً لتجنب الروابط الطويلة جداً
+    query = quote(text[:60])
+    return f"https://www.google.com/search?q=site:dorar.net+{query}"
 def verification_badge(status):
     """شارة بصرية لحالة التوثيق."""
     badges = {
