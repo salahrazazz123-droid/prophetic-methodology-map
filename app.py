@@ -96,6 +96,53 @@ st.markdown("""
         padding: 12px; border-radius: 8px; margin-top: 20px; color: #856404; font-size: 14px;
     }
     [data-testid="stNavigation"] { direction: rtl; }
+    [data-testid="stTopNavLink"] {
+        min-height: 46px; padding: 0.72rem 1rem; margin: 0 0.18rem;
+        border-radius: 10px; font-size: 1rem; font-weight: 700;
+        transition: background-color 0.18s ease, color 0.18s ease;
+    }
+    [data-testid="stTopNavLink"]:hover { background: #e8f0ec; color: #0d4d3d !important; }
+    [data-testid="stTopNavLink"][aria-current="page"] {
+        background: #0d4d3d; color: #fff !important;
+        border-bottom: 3px solid #d4af37;
+    }
+    [role="tablist"] { gap: 0.4rem; border-bottom: 2px solid #d9e2de; }
+    [data-testid="stTab"] {
+        min-height: 48px; padding: 0.7rem 1rem; border-radius: 10px 10px 0 0;
+        font-size: 1rem; font-weight: 700; color: #174d3d;
+    }
+    [data-testid="stTab"][aria-selected="true"] {
+        background: #e8f0ec; color: #0d4d3d; border-bottom: 3px solid #d4af37;
+    }
+    div.stButton > button, div[data-testid="stDownloadButton"] > button {
+        min-height: 46px; border-radius: 10px; font-weight: 700;
+    }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
+    [role="tab"]:focus-visible, [role="checkbox"]:focus-visible {
+        outline: 3px solid #b8941e !important; outline-offset: 3px !important;
+        box-shadow: 0 0 0 2px #fff !important;
+    }
+    [aria-disabled="true"] { opacity: 0.62 !important; }
+    .hadith-card { overflow-wrap: anywhere; }
+    @media (max-width: 768px) {
+        .main-title { padding: 18px 14px; }
+        .main-title h1 { font-size: 22px; }
+        .main-title p { font-size: 14px; }
+        [data-testid="stHorizontalBlock"] { flex-wrap: wrap; gap: 0.55rem; }
+        [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+            flex: 1 1 100% !important; min-width: 100% !important;
+        }
+        [data-testid="stTopNavLink"] { white-space: nowrap; }
+        [role="tablist"] { overflow-x: auto; }
+        [data-testid="stTab"] { white-space: nowrap; min-width: max-content; }
+        .hadith-card { padding: 12px !important; }
+        table { display: block; max-width: 100%; overflow-x: auto; }
+    }
+    @media (max-width: 480px) {
+        .main-title h1 { font-size: 20px; }
+        .idea-box, .step-card, .important-box { padding: 14px; }
+        [data-testid="stTopNavLink"], [data-testid="stTab"] { font-size: 0.92rem; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1296,7 +1343,7 @@ def show_card(card):
         <h4 style="color:#0d4d3d; margin:12px 0 6px 0;">«{card['text']}»</h4>
         <p><b>البُعد:</b> {card['dim']} ｜ <b>الغاية:</b> {card['goal']}</p>
         <p style="margin:6px 0 0 0;font-size:12px;">
-            <a href="{v_url}" target="_blank" style="color:#0d4d3d;">🔗 رابط المصدر (dorar.net)</a>
+            <a href="{v_url}" target="_blank" rel="noopener noreferrer" style="color:#0d4d3d;">🔗 فتح بحث النص في الدرر السنية</a>
             ｜ <span style="color:#888;">المعرّف: {card_id(card)}</span>
         </p>
     </div>
@@ -1339,7 +1386,7 @@ def show_index_result(card, matched_fields=None, key_prefix="index"):
         <h4 style="color:#0d4d3d;margin:9px 0 5px 0;">«{card['text']}»</h4>
         <p style="margin:4px 0;"><b>الملخص:</b> {card['summary']}</p>
         <p style="margin:4px 0;font-size:12px;">
-            <a href="{v_url}" target="_blank" style="color:#0d4d3d;">🔗 dorar.net</a>
+            <a href="{v_url}" target="_blank" rel="noopener noreferrer" style="color:#0d4d3d;">🔗 بحث النص في الدرر السنية</a>
             ｜ <span style="color:#888;">{card_id(card)}</span>
         </p>
         {f'<p style="margin:4px 0;color:#6b5710;font-size:13px;"><b>سبب الظهور:</b> {match_text}</p>' if match_text else ''}
@@ -1356,7 +1403,7 @@ def show_index_result(card, matched_fields=None, key_prefix="index"):
             key=f"fav_{key_prefix}_{cid}",
             on_click=toggle_favorite,
             args=(cid,),
-            use_container_width=True
+            width="stretch"
         )
     with action_col2:
         st.download_button(
@@ -1365,10 +1412,10 @@ def show_index_result(card, matched_fields=None, key_prefix="index"):
             file_name=f"hadith-card-{abs(hash(cid))}.md",
             mime="text/markdown",
             key=f"download_{key_prefix}_{cid}",
-            use_container_width=True
+            width="stretch"
         )
-    with st.expander("عرض التحليل الكامل للبطاقة"):
-        show_card(card)
+        with st.expander("عرض التحليل الكامل للبطاقة"):
+            show_card(card)
     
 # ═══════════════════════════════════════════════════════
 # الصفحة 1: الرئيسية
@@ -1406,34 +1453,47 @@ def home_page():
     </div>
     """, unsafe_allow_html=True)
 
+    if "learning_started" not in st.session_state:
+        st.session_state.learning_started = False
+    if "learning_step" not in st.session_state:
+        st.session_state.learning_step = 1
+
     st.markdown("### 🚀 من أين أبدأ؟")
     st.markdown("اختر المسار الأقرب إلى هدفك؛ ويمكنك الانتقال بين المسارات لاحقًا من القائمة العلوية.")
+    st.info("**رحلة تعلم** لفهم الفكرة خطوة بخطوة · **فهرس وبحث** للوصول إلى البطاقات · **مقارنة** لموازنة بطاقتين · **دليل** لمراجعة المنهجية.")
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown("""<div class="step-card" style="text-align:center;border:3px solid #d4af37;background:#fffdf2;"><div style="font-size:13px;color:#8b6f16;font-weight:bold;">للزائر الجديد</div><h4>🅰️ مسار تعلّم موجّه</h4>رحلة قصيرة خطوة بخطوة لفهم الفكرة الأساسية.</div>""", unsafe_allow_html=True)
-        if st.button("ابدأ الرحلة", key="go_learning_path", use_container_width=True):
-            st.session_state["learning_started"] = True
-            st.session_state["learning_step"] = 1
-            st.success("✅ رحلة التعلم جاهزة — انزل للأسفل إلى تبويب «🎓 رحلة التعلم» 👇")
+        journey_label = "▶️ تابع من حيث توقفت" if st.session_state.learning_started else "🚀 ابدأ الرحلة"
+        if st.button(journey_label, key="go_learning_path", type="primary", width="stretch"):
+            if not st.session_state.learning_started:
+                st.session_state.learning_started = True
+                st.session_state.learning_step = 1
+            st.session_state["home_tabs"] = "🎓 رحلة التعلم"
+            st.rerun()
+        if st.session_state.learning_started:
+            st.caption(f"تقدّمك الحالي: المرحلة {st.session_state.learning_step} من 7")
     with c2:
         st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">للباحث</div><h4>🅱️ الفهرس والبحث المتقدم</h4>ابحث في 100 بطاقة حديث موثقة حسب البُعد أو الموضوع.</div>""", unsafe_allow_html=True)
-        if st.button("افتح الفهرس", key="go_index", use_container_width=True):
+        if st.button("افتح الفهرس", key="go_index", width="stretch"):
             st.switch_page(pg_index)
     with c3:
         st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">للمعلم والداعية</div><h4>🅾️ مجموعات ومقارنات</h4>قارن بين بطاقتين، وأنشئ مواد تعليمية جاهزة.</div>""", unsafe_allow_html=True)
-        if st.button("اذهب للمقارنة", key="go_comparison", use_container_width=True):
+        if st.button("اذهب للمقارنة", key="go_comparison", width="stretch"):
+            st.session_state["index_tabs"] = "⚖️ مقارنة بطاقتين"
+            st.query_params["index_section"] = "comparison"
             st.switch_page(pg_index)
     with c4:
         st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">للمتخصص</div><h4>🅴 التوثيق والمنهجية</h4>راجع المنهجية، المصادر، وضوابط السلامة العلمية.</div>""", unsafe_allow_html=True)
-        if st.button("اقرأ المنهجية", key="go_guide", use_container_width=True):
+        if st.button("اقرأ المنهجية", key="go_guide", width="stretch"):
             st.switch_page(pg_guide)
 
     st.markdown("---")
     tab_guide, tab_learning = st.tabs([
         "🗺️ الخريطة الإرشادية",
         "🎓 رحلة التعلم",
-    ])
+    ], key="home_tabs", on_change="rerun")
 
     with tab_guide:
         st.markdown("### 🗺️ خريطة المنهج — نظرة عامة")
@@ -1452,7 +1512,7 @@ def home_page():
                     d = DIMENSIONS[idx]
                     with col:
                         st.markdown(f"""<div style="background:linear-gradient(135deg,#0d4d3d,#1a6b52);color:white;padding:18px 12px;border-radius:12px;text-align:center;margin:6px 0;font-size:17px;font-weight:bold;box-shadow:0 3px 8px rgba(0,0,0,0.18);border:2px solid #d4af37;">{d['icon']} {d['name']}<br><span style="font-size:13px;opacity:0.9;font-weight:normal;">{d['question']}</span></div>""", unsafe_allow_html=True)
-                        if st.button(f"استكشف بُعد {d['name']}", key=f"home_dim_{idx}", use_container_width=True):
+                        if st.button(f"استكشف بُعد {d['name']}", key=f"home_dim_{idx}", width="stretch"):
                             st.session_state.dim_index = idx
                             st.switch_page(pg_dims)
 
@@ -1527,7 +1587,7 @@ def home_page():
             col_left, col_mid, col_right = st.columns([1, 2, 1])
             with col_mid:
                 if st.button("🚀 ابدأ الرحلة", key="start_learning",
-                             type="primary", use_container_width=True):
+                             type="primary", width="stretch"):
                     st.session_state.learning_started = True
                     st.session_state.learning_step = 1
                     st.rerun()
@@ -1535,7 +1595,13 @@ def home_page():
         # شاشة الرحلة
         else:
             total_steps = 7
-            current = st.session_state.learning_step
+            current = max(1, min(int(st.session_state.learning_step), total_steps))
+            st.session_state.learning_step = current
+            step_titles = [
+                "التعريف بالمنهج", "الثابت والمتغير", "الأبعاد العشرة",
+                "دراسة بُعد", "تطبيق على بطاقة", "التأمل", "الإكمال والخطوات التالية"
+            ]
+            st.progress(current / total_steps, text=f"{step_titles[current - 1]} — المرحلة {current} من {total_steps}")
 
             st.markdown(f"""
             <div style="text-align:center; padding:10px; background:#f0f4f2;
@@ -1610,7 +1676,7 @@ def home_page():
                                 if st.button(
                                     f"{d['icon']} {d['name']}",
                                     key=f"learn_dim_{d['id']}",
-                                    use_container_width=True
+                                    width="stretch"
                                 ):
                                     st.session_state.learning_dim = d["name"]
 
@@ -1618,7 +1684,7 @@ def home_page():
                     st.markdown(f"#### 📌 اخترت: {st.session_state.learning_dim}")
                     st.caption("سنطبق المنهج على هذا البُعد في المرحلة القادمة.")
                     if st.button("الانتقال للمرحلة 4", key="learning_to_step_4",
-                                 type="primary", use_container_width=True):
+                                 type="primary", width="stretch"):
                         st.session_state.learning_step = 4
                         st.rerun()
 
@@ -1709,12 +1775,12 @@ def home_page():
 
                 col_save, col_show = st.columns(2)
                 with col_save:
-                    if st.button("💾 حفظ التأمل", key="save_answer", use_container_width=True):
+                    if st.button("💾 حفظ التأمل", key="save_answer", width="stretch"):
                         st.session_state.learning_answers[answer_key] = user_answer
                         st.success("✅ تم حفظ تأملك.")
 
                 with col_show:
-                    if st.button("📖 إظهار النموذج", key="show_model", use_container_width=True):
+                    if st.button("📖 إظهار النموذج", key="show_model", width="stretch"):
                         st.session_state.learning_answers[answer_key] = user_answer
                         st.markdown(f"""
                         <div class="golden-summary">
@@ -1776,14 +1842,14 @@ def home_page():
                 col_next, col_reset = st.columns(2)
                 with col_next:
                     if st.button("📚 استكشف بُعدًا آخر", key="back_to_step_3",
-                                 type="primary", use_container_width=True):
+                                 type="primary", width="stretch"):
                         st.session_state.learning_step = 3
                         st.session_state.learning_dim = None
                         st.rerun()
 
                 with col_reset:
                     if st.button("🔄 بدء الرحلة من جديد", key="restart_journey",
-                                 use_container_width=True):
+                                 width="stretch"):
                         st.session_state.learning_started = False
                         st.session_state.learning_step = 1
                         st.session_state.learning_answers = {}
@@ -1798,18 +1864,18 @@ def home_page():
                 with nav_col1:
                     if st.button("⬅️ السابق", key="learning_prev",
                                  disabled=(current <= 1),
-                                 use_container_width=True):
+                                 width="stretch"):
                         st.session_state.learning_step -= 1
                         st.rerun()
                 with nav_col3:
                     if st.button("التالي ➡️", key="learning_next",
                                  disabled=(current >= total_steps),
-                                 use_container_width=True):
+                                 width="stretch"):
                         st.session_state.learning_step += 1
                         st.rerun()
                 with nav_col2:
                     if st.button("🔄 بدء من جديد", key="learning_reset",
-                                 use_container_width=True):
+                                 width="stretch"):
                         st.session_state.learning_started = False
                         st.session_state.learning_step = 1
                         st.session_state.learning_answers = {}
@@ -1902,11 +1968,11 @@ def dimensions_page():
     st.markdown("---")
     c_prev, c_mid, c_next = st.columns([2, 3, 2])
     with c_prev:
-        if st.button("⬅️ السابق", disabled=(st.session_state.dim_index == 0), use_container_width=True):
+        if st.button("⬅️ السابق", disabled=(st.session_state.dim_index == 0), width="stretch"):
             st.session_state.dim_index -= 1
             st.rerun()
     with c_next:
-        if st.button("التالي ➡️", disabled=(st.session_state.dim_index == 9), use_container_width=True):
+        if st.button("التالي ➡️", disabled=(st.session_state.dim_index == 9), width="stretch"):
             st.session_state.dim_index += 1
             st.rerun()
     with c_mid:
@@ -1920,7 +1986,20 @@ def _set_index_search_pending(value):
     st.session_state["index_search_pending"] = value
 
 
+def _clear_index_search_filters():
+    st.session_state["index_search_top"] = ""
+    st.session_state["index_search_dim"] = "كل الأبعاد"
+    st.session_state["index_search_source"] = "كل المصادر"
+    st.session_state["index_result_limit"] = 10
+
+
 def index_page():
+    if (st.query_params.get("index_section") == "comparison"
+            or st.session_state.get("index_tabs") == "⚖️ مقارنة بطاقتين"):
+        st.session_state["index_tabs"] = "⚖️ مقارنة بطاقتين"
+        if st.query_params.get("index_section") == "comparison":
+            del st.query_params["index_section"]
+
     if "index_search_pending" in st.session_state:
         st.session_state["index_search_top"] = st.session_state.pop("index_search_pending")
 
@@ -1931,13 +2010,14 @@ def index_page():
 
     st.markdown("### 📖 فهرس الأحاديث — ١٠٠ بطاقة جاهزة بدون انتظار")
     st.markdown("""<div class="idea-box">ابدأ بكلمة مثل <b>رفق</b> أو <b>نية</b> أو <b>صدق</b>، ثم استخدم الفلاتر لتضييق النتائج. تظهر البطاقة مختصرة أولًا، وتُفتح التفاصيل عند الحاجة.</div>""", unsafe_allow_html=True)
+    st.caption("تنقّل واضح: البحث في الفهرس · التصفح حسب البُعد والمرجع والعدد · المفضلة · المقارنة. مرّر أفقيًا على شريط التبويبات عند ضيق الشاشة.")
 
     tab1, tab2, tab3, tab4 = st.tabs([
         "🔍 بحث في الفهرس",
         "🗂️ تصفح حسب البُعد",
         "⭐ المفضلة",
         "⚖️ مقارنة بطاقتين",
-    ])
+    ], key="index_tabs", on_change="rerun")
 
     with tab1:
         query = st.text_input(
@@ -1945,7 +2025,7 @@ def index_page():
             placeholder="مثال: رفق، نية، صدق...",
             key="index_search_top"
         )
-        st.caption("تلميح: البحث يوحّد أشكال الألف والتشكيل، ويعطي أولوية لمطابقة نص الحديث.")
+        st.caption("تلميح: البحث يوحّد أشكال الألف والتشكيل، ويعطي أولوية لمطابقة نص الحديث. استخدم زر مسح البحث لإعادة الفلاتر إلى وضعها الافتراضي.")
 
         quick_words = ["رفق", "نية", "صدقة", "رحمة", "صدق"]
         quick_cols = st.columns(len(quick_words))
@@ -1954,11 +2034,12 @@ def index_page():
                 st.button(
                     quick_word,
                     key=f"quick_search_{quick_word}",
-                    use_container_width=True,
+                    width="stretch",
                     on_click=_set_index_search_pending,
                     args=(quick_word,)
                 )
 
+        reference_labels = sorted({str(c["source"]).split(" (", 1)[0] for c in HADITH_CARDS})
         filter_col1, filter_col2, filter_col3 = st.columns(3)
         with filter_col1:
             search_dim = st.selectbox(
@@ -1968,20 +2049,42 @@ def index_page():
             )
         with filter_col2:
             search_source = st.selectbox(
-                "تصفية حسب المصدر",
-                ["كل المصادر"] + sorted({c["source"] for c in HADITH_CARDS}),
-                key="index_search_source"
+                "حسب المرجع — غير متاح حاليًا",
+                ["كل المصادر"] + reference_labels,
+                key="index_search_source",
+                disabled=True,
+                help="ستُفعّل تصفية المراجع عند ربط مصادر قابلة للبحث داخل التطبيق."
             )
         with filter_col3:
             result_limit = st.selectbox(
-                "عدد النتائج",
+                "عدد نتائج البحث الكلي",
                 [10, 25, 50, len(HADITH_CARDS)],
                 format_func=lambda n: "الكل" if n == len(HADITH_CARDS) else str(n),
                 key="index_result_limit"
             )
 
+        clear_col, note_col = st.columns([1, 3])
+        with clear_col:
+            st.button(
+                "مسح البحث والفلاتر",
+                key="clear_index_search_filters",
+                on_click=_clear_index_search_filters,
+                width="stretch"
+            )
+        with note_col:
+            st.caption("التصفية حسب المرجع معطّلة مؤقتًا؛ ستظهر أسماء المراجع وتُفعّل عند إضافة ربط المصدر.")
+
+        with st.expander("عرض أسماء المراجع غير المتاحة حاليًا"):
+            for reference_index, reference_name in enumerate(reference_labels):
+                st.checkbox(
+                    f"{reference_name} — غير متاح حاليًا",
+                    value=False,
+                    key=f"disabled_reference_search_{reference_index}",
+                    disabled=True
+                )
+
         dim_filter = None if search_dim == "كل الأبعاد" else search_dim
-        source_filter = None if search_source == "كل المصادر" else search_source
+        source_filter = None
 
         if query.strip():
             ranked_results = ranked_search_hadith_cards(query, result_limit, dim_filter, source_filter)
@@ -1990,22 +2093,64 @@ def index_page():
                 for _, _, card, matched_fields in ranked_results:
                     show_index_result(card, matched_fields, key_prefix="search")
             else:
-                st.info("لم تظهر نتائج بهذه الشروط. جرّب كلمة أقصر، أو أزل أحد الفلاتر.")
+                st.info("لم تظهر نتائج بهذه الشروط. جرّب كلمة أقصر، أو غيّر البُعد، أو امسح الفلاتر للبدء من جديد.")
         else:
             st.markdown("#### ابدأ بإحدى الكلمات المقترحة")
             st.info("اكتب كلمة في مربع البحث أو اضغط أحد الأزرار السريعة.")
 
     with tab2:
-        browse_dim = st.selectbox("اختر البُعد:", [d["name"] for d in DIMENSIONS], key="index_dim_top")
-        browse_source = st.selectbox(
-            "تصفية المصدر (اختياري):",
-            ["كل المصادر"] + sorted({c["source"] for c in HADITH_CARDS}),
-            key="index_browse_source"
-        )
-        dim_cards = [c for c in HADITH_CARDS
-                     if c["dim"] == browse_dim and
-                     (browse_source == "كل المصادر" or c["source"] == browse_source)]
-        st.markdown(f"**{len(dim_cards)} بطاقات في بُعد {browse_dim}:**")
+        st.markdown("### تصنيف البطاقات حسب البُعد والمرجع والعدد")
+        st.caption("اختر البُعد وعدد البطاقات. تصفية المراجع معروضة للتوضيح لكنها مجمّدة حتى تفعيل المصادر.")
+        reference_labels = sorted({str(c["source"]).split(" (", 1)[0] for c in HADITH_CARDS})
+        browse_col_dim, browse_col_source, browse_col_limit = st.columns(3)
+        with browse_col_dim:
+            browse_dim = st.selectbox(
+                "حسب البُعد:",
+                [d["name"] for d in DIMENSIONS],
+                key="index_dim_top"
+            )
+        with browse_col_source:
+            browse_source = st.selectbox(
+                "حسب المرجع — غير متاح حاليًا:",
+                reference_labels or ["لا توجد مراجع"],
+                key="index_browse_source",
+                disabled=True,
+                help="سيُفعّل هذا الاختيار بعد إضافة ربط مباشر بالمصادر."
+            )
+        with browse_col_limit:
+            browse_limit = st.selectbox(
+                "حسب العدد — الخيارات المتاحة حتى 10:",
+                list(range(1, 11)),
+                index=9,
+                format_func=lambda n: f"{n} حديث" if n == 1 else f"{n} أحاديث",
+                key="index_browse_limit"
+            )
+        disabled_count_max = max(11, len(HADITH_CARDS))
+        with st.expander("خيارات العدد الأكبر من 10 — مجمّدة وغير متاحة"):
+            st.caption(f"جميع القيم من 11 إلى {disabled_count_max} مجمّدة؛ الحد العملي لكل بُعد هو 10 أحاديث.")
+            st.selectbox(
+                "عدد الأحاديث غير المتاح لكل بُعد:",
+                list(range(11, disabled_count_max + 1)),
+                index=0,
+                disabled=True,
+                key="index_disabled_count_options",
+                help="لا توجد حاليًا أكثر من عشرة أحاديث مسجلة لكل بُعد."
+            )
+
+        with st.expander("عرض أسماء المراجع غير المتاحة حاليًا"):
+            for reference_index, reference_name in enumerate(reference_labels):
+                st.checkbox(
+                    f"{reference_name} — غير متاح حاليًا",
+                    value=False,
+                    key=f"disabled_reference_browse_{reference_index}",
+                    disabled=True
+                )
+
+        dim_cards = [c for c in HADITH_CARDS if c["dim"] == browse_dim]
+        dim_cards = dim_cards[:min(max(int(browse_limit), 1), 10)]
+        st.markdown(f"**تُعرض {len(dim_cards)} من أصل {sum(c['dim'] == browse_dim for c in HADITH_CARDS)} بطاقات في بُعد {browse_dim} (الحد الأقصى 10):**")
+        if not dim_cards:
+            st.info("لا توجد بطاقات مسجلة لهذا البُعد حتى الآن. جرّب بُعدًا آخر.")
         for card in dim_cards:
             show_index_result(card, key_prefix="browse")
 
@@ -2024,7 +2169,7 @@ def index_page():
                 file_name="hadith-favorites.md",
                 mime="text/markdown",
                 key="download_all_favorites",
-                use_container_width=True
+                width="stretch"
             )
             for card in favorite_cards:
                 show_index_result(card, key_prefix="favorites")
@@ -2083,6 +2228,15 @@ def index_page():
             html += '</table>'
             st.markdown(html, unsafe_allow_html=True)
 
+            common_fields = [label for label, value_a, value_b in rows
+                             if normalize_arabic(str(value_a)) == normalize_arabic(str(value_b))]
+            differing_fields = [label for label, value_a, value_b in rows
+                                if normalize_arabic(str(value_a)) != normalize_arabic(str(value_b))]
+            if common_fields:
+                st.success("**أوجه الاتفاق:** " + "، ".join(common_fields))
+            if differing_fields:
+                st.info("**أوجه الاختلاف:** " + "، ".join(differing_fields))
+
             st.markdown("### 🧠 قراءة المقارنة")
             if card_a["dim"] == card_b["dim"]:
                 st.success(f"✅ البطاقتان في البُعد نفسه: **{card_a['dim']}** — تطبيقان مختلفان لبعد واحد.")
@@ -2103,7 +2257,7 @@ def index_page():
                     file_name=f"compare-a-{card_id(card_a)}.md",
                     mime="text/markdown",
                     key="dl_cmp_a",
-                    use_container_width=True
+                    width="stretch"
                 )
             with col_b:
                 st.download_button(
@@ -2112,7 +2266,7 @@ def index_page():
                     file_name=f"compare-b-{card_id(card_b)}.md",
                     mime="text/markdown",
                     key="dl_cmp_b",
-                    use_container_width=True
+                    width="stretch"
                 )
 
     st.markdown("---")
@@ -2133,7 +2287,7 @@ def index_page():
 
     st.markdown("### 📋 جدول النموذج الأولي")
     st.markdown("""
-    <div class="warning-box">⚠️ الأرقام <strong>تقديرية للتوضيح فقط</strong> وقد تختلف في التطبيق الفعلي.</div>
+    <div class="warning-box">⚠️ الأعداد الظاهرة في هذا الجدول تصف عناصر التصنيف النظري، ولا تعني توافر عدد مماثل من الأحاديث الموثقة لكل بُعد. الفهرس العملي يعرض بحد أقصى 10 أحاديث لكل بُعد.</div>
     """, unsafe_allow_html=True)
 
     summary_data = {
@@ -2143,7 +2297,7 @@ def index_page():
         "الثابت المركزي": [d["central_constant"] for d in DIMENSIONS],
         "الغاية": [d["goal"] for d in DIMENSIONS],
     }
-    st.dataframe(summary_data, use_container_width=True, hide_index=True)
+    st.dataframe(summary_data, width="stretch", hide_index=True)
 
     tc = sum(len(d["constants"]) for d in DIMENSIONS)
     tv = sum(len(d["variables"]) for d in DIMENSIONS)
@@ -2170,7 +2324,7 @@ def analysis_page():
     ex_cols = st.columns(len(examples))
     for i, ex in enumerate(examples):
         with ex_cols[i]:
-            if st.button(ex, key=f"ex_{i}", use_container_width=True):
+            if st.button(ex, key=f"ex_{i}", width="stretch"):
                 st.session_state.selected_example = ex
 
     hadith_input = st.text_area(
@@ -2198,9 +2352,9 @@ def analysis_page():
 
     col1, col2 = st.columns(2)
     with col1:
-        instant_btn = st.button("⚡ ابدأ التحليل الفوري", type="primary", use_container_width=True)
+        instant_btn = st.button("⚡ ابدأ التحليل الفوري", type="primary", width="stretch")
     with col2:
-        ai_btn = st.button("🧠 ابدأ التحليل الذكي", use_container_width=True)
+        ai_btn = st.button("🧠 ابدأ التحليل الذكي", width="stretch")
 
     if instant_btn:
         if not hadith_input.strip():
@@ -2239,9 +2393,9 @@ def analysis_page():
                             st.markdown(f"**النص:** {h['text']}")
                             st.markdown(f"<span class='source-tag'>صحيح البخاري ({h['number']})</span>", unsafe_allow_html=True)
                             st.info("هذا النص موجود في البخاري، لكنه غير مربوط حاليًا ببطاقة تحليلية.")
-            else:
-                st.info("لم يُعثر على نتيجة محلية مطابقة.")
-                st.markdown("جرّب عبارة أقصر أو راجع المصادر الخارجية.")
+                else:
+                    st.info("لم يُعثر على نتيجة محلية مطابقة. جرّب عبارة أقصر أو كلمة مقترحة، ثم امسح النص وأعد المحاولة.")
+                st.markdown("يمكنك التحقق من النص في [الدرر السنية](https://dorar.net/) أو [المكتبة الشاملة](https://shamela.ws/).")
 
     if ai_btn:
         if not hadith_input.strip():
@@ -2257,7 +2411,7 @@ def analysis_page():
                 api_key = ""
 
             if not api_key:
-                st.warning("🔑 التحليل الذكي غير مفعّل حاليًا.")
+                st.warning("🔑 التحليل الذكي غير مفعّل حاليًا. يمكنك استخدام التحليل الفوري أو مراجعة النص في مصدر خارجي.")
                 st.markdown("""
                 لإتاحة Gemini، أضف المفتاح باسم `GEMINI_API_KEY` في **Secrets** الخاصة بالتطبيق.
 
@@ -2292,7 +2446,10 @@ def analysis_page():
     <div class="disclaimer">
         ⚠️ <strong>تنبيه:</strong> أداة استكشاف علمي وليست مصدر فتوى.
         جميع المخرجات تحتاج مراجعة المتخصص الشرعي.<br>
-        <strong>المصادر المعتمدة:</strong> الدرر السنية (dorar.net) | المكتبة الشاملة (shamela.ws)
+        <strong>المصادر المعتمدة للمراجعة:</strong>
+        <a href="https://dorar.net/" target="_blank" rel="noopener noreferrer">الدرر السنية</a> |
+        <a href="https://shamela.ws/" target="_blank" rel="noopener noreferrer">المكتبة الشاملة</a>.<br>
+        الرابط بجانب البطاقة يفتح بحثًا عن نصها، وليس توثيقًا آليًا نهائيًا.
     </div>
     """, unsafe_allow_html=True)
 
