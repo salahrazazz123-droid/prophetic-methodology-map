@@ -1383,6 +1383,14 @@ def home_page():
 
     st.markdown("""
     <div class="idea-box">
+    <h3 style="color:#0d4d3d; margin-top:0;">🎯 من نحن؟</h3>
+    منصة معرفية تفاعلية لفهم منهج النبي ﷺ من خلال الأبعاد
+    والثوابت والمتغيرات، مع البحث والتحليل والتطبيق العملي.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="idea-box">
     <h3 style="color:#0d4d3d; margin-top:0;">🎯 الفكرة الأساسية</h3>
     بناء خريطة إشعاعية للأحاديث النبوية عبر عشرة أبعاد،
     تحت كل بُعد ثوابت ومتغيرات، لجعل المنهج يُفهم من
@@ -1401,47 +1409,412 @@ def home_page():
     st.markdown("### 🚀 من أين أبدأ؟")
     st.markdown("اختر المسار الأقرب إلى هدفك؛ ويمكنك الانتقال بين المسارات لاحقًا من القائمة العلوية.")
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown("""<div class="step-card" style="text-align:center;border:3px solid #d4af37;background:#fffdf2;"><div style="font-size:13px;color:#8b6f16;font-weight:bold;">المسار الموصى به للمستخدم الجديد</div><h4>📚 تعلّم الأبعاد</h4>افهم الخريطة العامة للأبعاد العشرة، ثم انتقل إلى الفهرس للتطبيق.</div>""", unsafe_allow_html=True)
-        if st.button("ابدأ من الأبعاد العشرة", key="go_dims", type="primary", use_container_width=True):
-            st.switch_page(pg_dims)
+        st.markdown("""<div class="step-card" style="text-align:center;border:3px solid #d4af37;background:#fffdf2;"><div style="font-size:13px;color:#8b6f16;font-weight:bold;">للزائر الجديد</div><h4>🅰️ مسار تعلّم موجّه</h4>رحلة قصيرة خطوة بخطوة لفهم الفكرة الأساسية.</div>""", unsafe_allow_html=True)
+        if st.button("ابدأ الرحلة", key="go_learning_path", use_container_width=True):
+            st.session_state["learning_started"] = True
+            st.session_state["learning_step"] = 1
+            st.success("✅ رحلة التعلم جاهزة — انزل للأسفل إلى تبويب «🎓 رحلة التعلم» 👇")
     with c2:
-        st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">للباحث عن حديث</div><h4>📊 استكشف الفهرس</h4>ابحث في ١٠٠ بطاقة، وتصفح النصوص والمصادر والأبعاد المرتبطة بها.</div>""", unsafe_allow_html=True)
-        if st.button("اذهب إلى الفهرس", key="go_index", use_container_width=True):
+        st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">للباحث</div><h4>🅱️ الفهرس والبحث المتقدم</h4>ابحث في 100 بطاقة حديث موثقة حسب البُعد أو الموضوع.</div>""", unsafe_allow_html=True)
+        if st.button("افتح الفهرس", key="go_index", use_container_width=True):
             st.switch_page(pg_index)
     with c3:
-        st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">لمن لديه نص حديث</div><h4>🔍 ابدأ التحليل</h4>ألصق النص لتحليل فوري محلي، أو اختر التحليل الذكي عند توفر الإعدادات اللازمة.</div>""", unsafe_allow_html=True)
-        if st.button("افتح صفحة التحليل", key="go_analysis", use_container_width=True):
-            st.switch_page(pg_analysis)
+        st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">للمعلم والداعية</div><h4>🅾️ مجموعات ومقارنات</h4>قارن بين بطاقتين، وأنشئ مواد تعليمية جاهزة.</div>""", unsafe_allow_html=True)
+        if st.button("اذهب للمقارنة", key="go_comparison", use_container_width=True):
+            st.switch_page(pg_index)
+    with c4:
+        st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">للمتخصص</div><h4>🅴 التوثيق والمنهجية</h4>راجع المنهجية، المصادر، وضوابط السلامة العلمية.</div>""", unsafe_allow_html=True)
+        if st.button("اقرأ المنهجية", key="go_guide", use_container_width=True):
+            st.switch_page(pg_guide)
 
-    st.markdown("### 🗺️ خريطة المنهج — نظرة عامة")
-    st.markdown("""
-    <div style="text-align:center;">
-        <span class="center-mini">🎯 الغاية: رضا الله</span><br>
-        <span class="trunk-mini">🌳 الثوابت المطلقة: التوحيد • الوحي • الآخرة</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("---")
+    tab_guide, tab_learning = st.tabs([
+        "🗺️ الخريطة الإرشادية",
+        "🎓 رحلة التعلم",
+    ])
 
-    for i in range(0, 10, 2):
-        cols = st.columns(2)
-        for j, col in enumerate(cols):
-            idx = i + j
-            if idx < len(DIMENSIONS):
-                d = DIMENSIONS[idx]
-                with col:
-                    st.markdown(f"""<div style="background:linear-gradient(135deg,#0d4d3d,#1a6b52);color:white;padding:18px 12px;border-radius:12px;text-align:center;margin:6px 0;font-size:17px;font-weight:bold;box-shadow:0 3px 8px rgba(0,0,0,0.18);border:2px solid #d4af37;">{d['icon']} {d['name']}<br><span style="font-size:13px;opacity:0.9;font-weight:normal;">{d['question']}</span></div>""", unsafe_allow_html=True)
-                    if st.button(f"استكشف بُعد {d['name']}", key=f"home_dim_{idx}", use_container_width=True):
-                        st.session_state.dim_index = idx
-                        st.switch_page(pg_dims)
+    with tab_guide:
+        st.markdown("### 🗺️ خريطة المنهج — نظرة عامة")
+        st.markdown("""
+        <div style="text-align:center;">
+            <span class="center-mini">🎯 الغاية: رضا الله</span><br>
+            <span class="trunk-mini">🌳 الثوابت المطلقة: التوحيد • الوحي • الآخرة</span>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="idea-box">
-    <h3 style="color:#0d4d3d; margin-top:0;">🔑 الفرق عن الترتيب التقليدي</h3>
-    <b>الترتيب الشائع (خطي):</b> باب ثم باب — يحتاج قراءة الكتاب كله للفهم.<br>
-    <b>الترتيب الإشعاعي (حلقي):</b> مركز ثم حلقات — يكشف العلاقات، ويميز الثابت من المتغير، ويسهّل الرؤية الشاملة.
-    </div>
-    """, unsafe_allow_html=True)
+        for i in range(0, 10, 2):
+            cols = st.columns(2)
+            for j, col in enumerate(cols):
+                idx = i + j
+                if idx < len(DIMENSIONS):
+                    d = DIMENSIONS[idx]
+                    with col:
+                        st.markdown(f"""<div style="background:linear-gradient(135deg,#0d4d3d,#1a6b52);color:white;padding:18px 12px;border-radius:12px;text-align:center;margin:6px 0;font-size:17px;font-weight:bold;box-shadow:0 3px 8px rgba(0,0,0,0.18);border:2px solid #d4af37;">{d['icon']} {d['name']}<br><span style="font-size:13px;opacity:0.9;font-weight:normal;">{d['question']}</span></div>""", unsafe_allow_html=True)
+                        if st.button(f"استكشف بُعد {d['name']}", key=f"home_dim_{idx}", use_container_width=True):
+                            st.session_state.dim_index = idx
+                            st.switch_page(pg_dims)
+
+        st.markdown("""
+        <div class="idea-box">
+        <h3 style="color:#0d4d3d; margin-top:0;">🔑 الفرق عن الترتيب التقليدي</h3>
+        <b>الترتيب الشائع (خطي):</b> باب ثم باب — يحتاج قراءة الكتاب كله للفهم.<br>
+        <b>الترتيب الإشعاعي (حلقي):</b> مركز ثم حلقات — يكشف العلاقات، ويميز الثابت من المتغير، ويسهّل الرؤية الشاملة.
+        </div>
+        """, unsafe_allow_html=True)
+
+    with tab_learning:
+        # تهيئة الحالة
+        if "learning_started" not in st.session_state:
+            st.session_state.learning_started = False
+        if "learning_step" not in st.session_state:
+            st.session_state.learning_step = 1
+        if "learning_answers" not in st.session_state:
+            st.session_state.learning_answers = {}
+        if "learning_dim" not in st.session_state:
+            st.session_state.learning_dim = None
+
+        # الشاشة الترحيبية
+        if not st.session_state.learning_started:
+            st.markdown("""
+            <div class="main-title" style="text-align:center;">
+                <h1>🎓 رحلة الفهم</h1>
+                <p>رحلة قصيرة لاستكشاف منهج النبي ﷺ — خطوة بخطوة</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="idea-box">
+            <h3 style="color:#0d4d3d; margin-top:0;">📖 ما هي هذه الرحلة؟</h3>
+            رحلة تعليمية قصيرة مصممة للزائر الجديد. ستتعرف خلالها على
+            فكرة الثوابت والمتغيرات، ثم الأبعاد العشرة، ثم تطبق عمليًا
+            على بُعد واحد، وتنتهي بسؤال تأملي يجعلك مشاركًا لا متلقيًا.
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("#### 🎯 ماذا ستتعلم؟")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.markdown("""
+                <div class="step-card">
+                    <h4>1. المفهوم</h4>
+                    ما الثابت؟ ما المتغير؟ ولماذا التمييز بينهما؟
+                </div>
+                <div class="step-card">
+                    <h4>2. الأبعاد</h4>
+                    كيف تنظر للأحاديث من خلال عشرة أبعاد متكاملة؟
+                </div>
+                """, unsafe_allow_html=True)
+            with col_b:
+                st.markdown("""
+                <div class="step-card">
+                    <h4>3. التطبيق</h4>
+                    كيف تُطبّق المنهج على حديث واحد؟
+                </div>
+                <div class="step-card">
+                    <h4>4. التأمل</h4>
+                    كيف تُحوّل الفهم إلى تأمل ومشاركة؟
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div class="golden-summary">
+            ⏱️ الرحلة تأخذ 5-7 دقائق فقط — والاستيعاب الكامل أهم من السرعة.
+            </div>
+            """, unsafe_allow_html=True)
+
+            col_left, col_mid, col_right = st.columns([1, 2, 1])
+            with col_mid:
+                if st.button("🚀 ابدأ الرحلة", key="start_learning",
+                             type="primary", use_container_width=True):
+                    st.session_state.learning_started = True
+                    st.session_state.learning_step = 1
+                    st.rerun()
+
+        # شاشة الرحلة
+        else:
+            total_steps = 7
+            current = st.session_state.learning_step
+
+            st.markdown(f"""
+            <div style="text-align:center; padding:10px; background:#f0f4f2;
+                        border-radius:10px; margin-bottom:15px;">
+                <b>المرحلة {current} من {total_steps}</b>
+                <div style="margin-top:8px; background:#ddd; border-radius:10px;
+                            height:8px; overflow:hidden;">
+                    <div style="width:{int((current/total_steps)*100)}%;
+                                background:linear-gradient(135deg,#0d4d3d,#1a6b52);
+                                height:100%;"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.session_state.learning_step == 1:
+                st.markdown("### 🎯 ما هو منهج النبي ﷺ؟")
+                st.markdown("""
+                <div class="idea-box">
+                النبي ﷺ شخصية واحدة عاشت في زمن واحد ومكان واحد؛ لذلك يُفهم منهجه بالنظر إلى الصورة التي تجمع أقواله وأفعاله ومواقفه، لا باقتطاع موقف أو تحويل عادة اجتماعية إلى قاعدة عامة. ولا يُقرأ المنهج من خلال ما اعتدناه، بل من مركزه ومقاصده وترابط عناصره. فإذا ذُكر متغير، كوسيلة أو أسلوب أو ظرف، نسأل عن الثابت الذي يخدمه، ولا نجعل الوسيلة غاية. وإذا ذُكر ثابت، نسأل عن الغاية التي يحققها في حياة الإنسان. يساعدنا ذلك على التمييز بين الأصل وتطبيقه، والمقصد والوسيلة، وصون ما لا يتبدل مع اختلاف الأحوال. وهكذا نربط التفاصيل بمركزها، ونقرأ كل بُعد في سياقه، دون جعل عاداتنا معيارًا للحكم على المنهج.
+                </div>
+                """, unsafe_allow_html=True)
+                st.markdown("""
+                <div class="golden-summary">
+                من فهم المنهج من مركزه ﷺ، حمى الثابت من التحريف والمتغير من التقديس.
+                </div>
+                """, unsafe_allow_html=True)
+
+            elif st.session_state.learning_step == 2:
+                st.markdown("### ⚓ الثابت والمتغير — المفهوم الأساسي")
+                st.markdown("""
+                <table style="width:100%;border-collapse:collapse;font-size:15px;">
+                    <tr style="background:#0d4d3d;color:white;">
+                        <th style="padding:10px;text-align:right;">الثابت</th>
+                        <th style="padding:10px;text-align:right;">المتغير</th>
+                    </tr>
+                    <tr style="background:#f8f9fa;">
+                        <td style="padding:10px;border-bottom:1px solid #ddd;">لا يتغير بالزمان/المكان</td>
+                        <td style="padding:10px;border-bottom:1px solid #ddd;">يتغير بالزمان/المكان</td>
+                    </tr>
+                    <tr style="background:white;">
+                        <td style="padding:10px;border-bottom:1px solid #ddd;">يُحمى من التحريف</td>
+                        <td style="padding:10px;border-bottom:1px solid #ddd;">يُحمى من التقديس</td>
+                    </tr>
+                    <tr style="background:#f8f9fa;">
+                        <td style="padding:10px;border-bottom:1px solid #ddd;">هو الأصل</td>
+                        <td style="padding:10px;border-bottom:1px solid #ddd;">هو التطبيق</td>
+                    </tr>
+                </table>
+                """, unsafe_allow_html=True)
+                st.markdown("""
+                <div class="example-box">
+                مثال: الصدق ثابت (لا يجوز الكذب أبدًا). أما طرق التعبير عن الصدق (اللسان، الكتابة، الإشارة) فهي متغيرة.
+                </div>
+                """, unsafe_allow_html=True)
+                st.markdown("""
+                <div class="golden-summary">
+                الثابت واحد — والمتغيرات متعددة.
+                </div>
+                """, unsafe_allow_html=True)
+
+            elif st.session_state.learning_step == 3:
+                st.markdown("### 📚 الأبعاد العشرة — خريطة كاملة لحياة الإنسان")
+                st.caption("اختر بُعدًا لعرض تفاصيله:")
+
+                for i in range(0, len(DIMENSIONS), 2):
+                    cols = st.columns(2)
+                    for j, col in enumerate(cols):
+                        idx = i + j
+                        if idx < len(DIMENSIONS):
+                            d = DIMENSIONS[idx]
+                            with col:
+                                if st.button(
+                                    f"{d['icon']} {d['name']}",
+                                    key=f"learn_dim_{d['id']}",
+                                    use_container_width=True
+                                ):
+                                    st.session_state.learning_dim = d["name"]
+
+                if st.session_state.learning_dim:
+                    st.markdown(f"#### 📌 اخترت: {st.session_state.learning_dim}")
+                    st.caption("سنطبق المنهج على هذا البُعد في المرحلة القادمة.")
+                    if st.button("الانتقال للمرحلة 4", key="learning_to_step_4",
+                                 type="primary", use_container_width=True):
+                        st.session_state.learning_step = 4
+                        st.rerun()
+
+            elif st.session_state.learning_step == 4:
+                selected_dim_name = st.session_state.learning_dim or DIMENSIONS[0]["name"]
+                d = next((dim for dim in DIMENSIONS if dim["name"] == selected_dim_name), DIMENSIONS[0])
+
+                st.markdown(f"### {d['icon']} دراسة بُعد: {d['name']}")
+                st.markdown(f"**السؤال:** {d['question']}")
+
+                st.markdown(f"""
+                <div class="idea-box">
+                <h4 style="color:#0d4d3d; margin-top:0;">📌 التعريف</h4>
+                {d['definition']}
+                </div>
+                """, unsafe_allow_html=True)
+
+                if d["constants"]:
+                    c = d["constants"][0]
+                    st.markdown(f"""
+                    <div class="step-card">
+                        <h4>⚓ أهم ثابت</h4>
+                        <b>{c['name']}:</b> {c['desc']}<br>
+                        <i>{c['evidence']}</i>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                if d["variables"]:
+                    v = d["variables"][0]
+                    st.markdown(f"""
+                    <div class="step-card">
+                        <h4>🔄 أهم متغير</h4>
+                        <b>{v['name']}:</b> {v['desc']}<br>
+                        <span style="color:#666;">يخدم: {v['serves']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                tfs = TFS_DETAILS[d["name"]]
+                st.markdown("### 🧠 كيف كان يفكر ويشعر ويتصرف ﷺ؟")
+                st.markdown(f"""
+                <div class="tf-box tf-think"><b>🧠 يفكر</b><br>{tfs['think']}</div>
+                <div class="tf-box tf-feel"><b>❤️ يشعر</b><br>{tfs['feel']}</div>
+                <div class="tf-box tf-act"><b>⚙️ يتصرف</b><br>{tfs['act']}</div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f'<div class="golden-summary">📐 القاعدة: {d["rule"]}</div>', unsafe_allow_html=True)
+
+            elif st.session_state.learning_step == 5:
+                selected_dim_name = st.session_state.learning_dim or DIMENSIONS[0]["name"]
+                matching_cards = [c for c in HADITH_CARDS if c["dim"] == selected_dim_name]
+
+                st.markdown(f"### 💡 بطاقة حديث تطبيقية من بُعد {selected_dim_name}")
+                st.markdown("""
+                <div class="idea-box">
+                الآن نطبّق المنهج على حديث حقيقي. لاحظ في البطاقة:
+                <b>كيف أن الثابت محمي والمتغير خادم للغاية</b>.
+                </div>
+                """, unsafe_allow_html=True)
+
+                if matching_cards:
+                    show_card(matching_cards[0])
+                else:
+                    st.info("لا توجد بطاقة تطبيقية لهذا البُعد في الفهرس الحالي.")
+
+            elif st.session_state.learning_step == 6:
+                selected_dim_name = st.session_state.learning_dim or DIMENSIONS[0]["name"]
+
+                st.markdown("### 🤔 سؤال تأملي")
+                st.markdown(f"""
+                <div class="idea-box">
+                بعد أن درست بُعد <b>{selected_dim_name}</b> وقرأت بطاقته التطبيقية،
+                حان وقت التأمل. أجب عن السؤال التالي بكلماتك، ثم اضغط "إظهار النموذج"
+                لتقارن فهمك مع صياغة مقترحة.
+                </div>
+                """, unsafe_allow_html=True)
+
+                question = "ما الثابت في هذا الحديث؟ وما الذي يتغير بتغير الزمان والمكان؟"
+                st.markdown(f"**❓ {question}**")
+
+                answer_key = f"answer_{selected_dim_name}"
+                user_answer = st.text_area(
+                    "اكتب تأملك هنا:",
+                    value=st.session_state.learning_answers.get(answer_key, ""),
+                    height=150,
+                    key=f"ta_{answer_key}",
+                    placeholder="اكتب ما فهمته عن الثابت والمتغير في هذا البُعد..."
+                )
+
+                col_save, col_show = st.columns(2)
+                with col_save:
+                    if st.button("💾 حفظ التأمل", key="save_answer", use_container_width=True):
+                        st.session_state.learning_answers[answer_key] = user_answer
+                        st.success("✅ تم حفظ تأملك.")
+
+                with col_show:
+                    if st.button("📖 إظهار النموذج", key="show_model", use_container_width=True):
+                        st.session_state.learning_answers[answer_key] = user_answer
+                        st.markdown(f"""
+                        <div class="golden-summary">
+                        💡 <b>نموذج إرشادي للتأمل</b><br><br>
+                        ركّز على أن الثابت هو الأصل الذي لا يتغير — كالمبدأ أو القيمة.
+                        والمتغير هو الأسلوب أو الوسيلة التي تتبدل بحسب الزمان والمكان.
+                        انظر إلى بطاقة البُعد: تجد الثابت واضحًا، والمتغير خادمًا له.
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                st.caption(f"📝 عدد التأملات المحفوظة: {len(st.session_state.learning_answers)}")
+
+            elif st.session_state.learning_step == 7:
+                selected_dim_name = st.session_state.learning_dim or DIMENSIONS[0]["name"]
+                total_dimensions = len(DIMENSIONS)
+
+                st.markdown("""
+                <div class="main-title" style="text-align:center;">
+                    <h1>🎉 أكملت رحلة الفهم!</h1>
+                    <p>وصلت إلى نهاية هذه الرحلة القصيرة</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="important-box">
+                    <h3>✅ ما أنجزته</h3>
+                    • فهمت معنى <b>الثابت والمتغير</b>.<br>
+                    • تعرفت على <b>الأبعاد العشرة</b>.<br>
+                    • درست بُعد <b>{selected_dim_name}</b> تطبيقيًا.<br>
+                    • قرأت بطاقة حديث من الفهرس.<br>
+                    • تأملت وكتبت فهمك الخاص.
+                </div>
+                """, unsafe_allow_html=True)
+
+                completed_dim = st.session_state.learning_dim
+                if completed_dim:
+                    st.markdown(f"### 🎯 أنجزت: بُعد واحد من {total_dimensions}")
+                    progress_pct = int((1 / total_dimensions) * 100)
+                    st.markdown(f"""
+                    <div style="text-align:center; padding:15px; background:#f0f4f2;
+                                border-radius:10px; margin:15px 0;">
+                        <b>نسبة إنجاز الرحلة الكاملة: {progress_pct}%</b>
+                        <div style="margin-top:10px; background:#ddd; border-radius:10px;
+                                    height:12px; overflow:hidden;">
+                            <div style="width:{progress_pct}%;
+                                        background:linear-gradient(135deg,#d4af37,#b8941e);
+                                        height:100%;"></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                st.markdown("""
+                <div class="golden-summary">
+                🌟 رحلتك في الفهم لا تنتهي هنا — كل بُعدٍ يفتح لك آفاقًا جديدة.
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("#### 🚀 ماذا بعد؟")
+                col_next, col_reset = st.columns(2)
+                with col_next:
+                    if st.button("📚 استكشف بُعدًا آخر", key="back_to_step_3",
+                                 type="primary", use_container_width=True):
+                        st.session_state.learning_step = 3
+                        st.session_state.learning_dim = None
+                        st.rerun()
+
+                with col_reset:
+                    if st.button("🔄 بدء الرحلة من جديد", key="restart_journey",
+                                 use_container_width=True):
+                        st.session_state.learning_started = False
+                        st.session_state.learning_step = 1
+                        st.session_state.learning_answers = {}
+                        st.session_state.learning_dim = None
+                        st.rerun()
+
+                st.markdown("---")
+                st.caption("🎁 شهادة إتمام الرحلة — قريبًا في نسخة لاحقة.")
+
+            if st.session_state.learning_step < 7:
+                nav_col1, nav_col2, nav_col3 = st.columns([1, 1, 1])
+                with nav_col1:
+                    if st.button("⬅️ السابق", key="learning_prev",
+                                 disabled=(current <= 1),
+                                 use_container_width=True):
+                        st.session_state.learning_step -= 1
+                        st.rerun()
+                with nav_col3:
+                    if st.button("التالي ➡️", key="learning_next",
+                                 disabled=(current >= total_steps),
+                                 use_container_width=True):
+                        st.session_state.learning_step += 1
+                        st.rerun()
+                with nav_col2:
+                    if st.button("🔄 بدء من جديد", key="learning_reset",
+                                 use_container_width=True):
+                        st.session_state.learning_started = False
+                        st.session_state.learning_step = 1
+                        st.session_state.learning_answers = {}
+                        st.session_state.learning_dim = None
+                        st.rerun()
 
 
 # ═══════════════════════════════════════════════════════
@@ -1807,6 +2180,15 @@ def analysis_page():
         placeholder="اكتب نص الحديث هنا..."
     )
 
+    if len(hadith_input) > 3000:
+        st.warning("⚠️ النص طويل جداً (الحد الأقصى: 3000 حرف). الرجاء اختصاره قبل المتابعة.")
+        st.stop()
+
+    if hadith_input.strip():
+        if st.button("🗑️ مسح النص", key="clear_analysis_input"):
+            st.session_state.selected_example = ""
+            st.rerun()
+
     st.markdown("### اختر نوع التحليل")
     mode_col1, mode_col2 = st.columns(2)
     with mode_col1:
@@ -1997,10 +2379,29 @@ pg = st.navigation(
 # التذييل (يظهر أسفل كل صفحة)
 # ═══════════════════════════════════════════════════════
 st.markdown("""
-<div style="text-align:center; color:#666; font-size:12px; padding:15px; direction:rtl;">
-    تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي 2026 — المسار الرابع |
+<div style="text-align:center; color:#666; font-size:12px; padding:18px; direction:rtl; border-top:2px solid #d4af37; margin-top:20px;">
+    <div style="font-weight:bold; color:#0d4d3d; margin-bottom:6px;">
+        📖 نظام استكشاف منهج النبي ﷺ
+    </div>
+    تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي 2026 — المسار الرابع<br>
     <strong>صلاح رزاز</strong> | مشاركة فردية<br>
-    <small>هذه الأداة مدعومة بالذكاء الاصطناعي وليست بديلاً عن المختص الشرعي</small>
+    <div style="margin-top:8px; padding:6px 0; color:#0d4d3d;">
+        <span style="background:#f0f4f2; padding:3px 10px; border-radius:10px; font-size:11px;">
+            الإصدار 2.0.0
+        </span>
+        &nbsp;•&nbsp;
+        <span style="background:#f0f4f2; padding:3px 10px; border-radius:10px; font-size:11px;">
+            آخر تحديث: 2026-10-04
+        </span>
+        &nbsp;•&nbsp;
+        <span style="background:#f0f4f2; padding:3px 10px; border-radius:10px; font-size:11px;">
+            100 بطاقة حديث
+        </span>
+    </div>
+    <small style="display:block; margin-top:10px;">
+        هذه الأداة مدعومة بالذكاء الاصطناعي وليست بديلاً عن المختص الشرعي.<br>
+        <strong>المصادر المعتمدة:</strong> الدرر السنية (dorar.net) | المكتبة الشاملة (shamela.ws)
+    </small>
 </div>
 """, unsafe_allow_html=True)
 
