@@ -1320,32 +1320,56 @@ def get_hadith_by_number(number):
 # البحث في الفهرس المحلي (RAG مبسّط)
 # ═══════════════════════════════════════════════════════
 def normalize_arabic(text):
-    """ت Normalize بسيط: إزالة التشكيل والتطويل"""
-    t = text.strip()
+    """توحيد محافظ للنص العربي لتحسين البحث دون تغيير المعنى."""
+    t = str(text or "").strip().lower()
     for ch in "ًٌٍَُِّْٰـ":
         t = t.replace(ch, "")
-    return t
+    # توحيد صور الألف والهمزة، والياء النهائية، والمسافات المتكررة.
+    t = t.translate(str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي"}))
+    return " ".join(t.split())
 
 STOPWORDS = {"الله", "ان", "انه", "ما", "لا", "في", "من", "علي", "الي",
              "اليوم", "ثم", "قد", "لم", "لن", "كل", "هو", "هي", "ذا",
              "التي", "الذي", "اذا", "او", "يا", "رب", "انه", "كنت"}
 
-def search_hadith_cards(query, limit=10):
-    """بحث ذكي: يتجاهل الكلمات الشائعة ويطابق الكلمات المميزة فقط"""
+def ranked_search_hadith_cards(query, limit=10, dim_filter=None, source_filter=None):
+    """إرجاع النتائج مرتبة مع الدرجة ومواضع المطابقة لشرح سبب الظهور."""
     q = normalize_arabic(query)
     words = [w for w in q.split() if len(w) > 2 and w not in STOPWORDS]
     if not words:
         words = [w for w in q.split() if len(w) > 2]
+    if not words:
+        return []
     results = []
     for card in HADITH_CARDS:
-        hay = normalize_arabic(" ".join([
-            card["text"], card["constant"], card["variable"],
-            card["dim"], card["summary"], card["source"]]))
-        score = sum(1 for w in words if w in hay)
-        if score > 0:
-            results.append((score, card))
-    results.sort(key=lambda x: x[0], reverse=True)
-    return [c for _, c in results[:limit]]
+        if dim_filter and card["dim"] != dim_filter:
+            continue
+        if source_filter and card["source"] != source_filter:
+            continue
+        fields = {
+            "نص الحديث": normalize_arabic(card["text"]),
+            "الثابت": normalize_arabic(card["constant"]),
+            "المتغير": normalize_arabic(card["variable"]),
+            "البعد": normalize_arabic(card["dim"]),
+            "الملخص": normalize_arabic(card["summary"]),
+            "المصدر": normalize_arabic(card["source"]),
+        }
+        matched = []
+        score = 0
+        weights = {"نص الحديث": 8, "الملخص": 5, "الثابت": 4, "المتغير": 3, "البعد": 2, "المصدر": 1}
+        for field, value in fields.items():
+            hits = sum(1 for word in words if word in value)
+            if hits:
+                matched.append(field)
+                score += weights[field] * hits
+        if score:
+            results.append((score, len(matched), card, matched))
+    results.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return results[:limit]
+
+def search_hadith_cards(query, limit=10, dim_filter=None, source_filter=None):
+    """واجهة بحث مختصرة تحافظ على التوافق مع التحليل والفهرس."""
+    return [item[2] for item in ranked_search_hadith_cards(query, limit, dim_filter, source_filter)]
 
 
 def rag_search(query):
@@ -1374,8 +1398,38 @@ def analyze_hadith_ai(hadith_text, api_key):
             return None, last_error
     return None, "⚠️ انتهت الحصص المجانية. جرّب وضع العرض السريع أو حاول لاحقًا."
 
+def card_identity(card):
+    """معرف ثابت عملي للبطاقة الحالية إلى أن تُنقل البيانات إلى قاعدة بيانات."""
+    return "|".join(str(card.get(field, "")) for field in ("source", "text", "dim"))
+
+def card_to_markdown(card):
+    """تحويل البطاقة إلى صيغة نصية مناسبة للنسخ أو التنزيل."""
+    return (f"# بطاقة حديث\n\n"
+            f"## النص الموثق\n{card['text']}\n\n"
+            f"**المصدر:** {card['source']}\n"
+            f"**الراوي:** {card['narrator']}\n\n"
+            f"## تصنيف التطبيق وتحليله\n"
+            f"**البعد:** {card['dim']}\n"
+            f"**الثابت:** {card['constant']}\n"
+            f"**المتغير:** {card['variable']}\n"
+            f"**الغاية:** {card['goal']}\n"
+            f"**يفكر:** {card['think']}\n"
+            f"**يشعر:** {card['feel']}\n"
+            f"**يتصرف:** {card['act']}\n"
+            f"**الملخص:** {card['summary']}\n\n"
+            "> التنبيه: التصنيف والتحليل من مكونات التطبيق وليس حكمًا شرعيًا مستقلًا.\n")
+
+def toggle_favorite(card_id):
+    if "favorites" not in st.session_state:
+        st.session_state.favorites = set()
+    if card_id in st.session_state.favorites:
+        st.session_state.favorites.remove(card_id)
+    else:
+        st.session_state.favorites.add(card_id)
+
 def show_card(card):
-    """عرض بطاقة حديث جاهزة من الفهرس"""
+    """عرض بطاقة حديث مع فصل النص الموثق عن تحليل التطبيق."""
+    st.markdown("### النص الموثق وبيانات المصدر")
     st.markdown(f"""
     <div class="hadith-card">
         <span class="source-tag">{card['source']}</span>
@@ -1399,10 +1453,35 @@ def show_card(card):
             <b>❤️ يشعر:</b> {card['feel']}
         </div>""", unsafe_allow_html=True)
 
+    st.markdown("### تحليل التطبيق وتصنيفه")
     st.markdown(f"""
     <div class="tf-box tf-act"><b>⚙️ يتصرف:</b> {card['act']}</div>
     <div class="golden-summary">💡 {card['summary']}</div>
+    <div class="disclaimer"><strong>تنبيه منهجي:</strong> الثابت والمتغير والتفسير التالي تصنيف تحليلي داخل التطبيق، ولا يغني عن المراجعة العلمية.</div>
     """, unsafe_allow_html=True)
+
+def show_index_result(card, matched_fields=None, key_prefix="index"):
+    """عرض بطاقة فهرس موجزة أولًا، مع تفاصيل كاملة عند الطلب."""
+    match_text = "، ".join(matched_fields or [])
+    st.markdown(f"""
+    <div class="hadith-card" style="padding:12px 15px;">
+        <span class="source-tag">{card['source']}</span>
+        <span style="color:#666;font-size:13px;"> الراوي: {card['narrator']} · البعد: {card['dim']}</span>
+        <h4 style="color:#0d4d3d;margin:9px 0 5px 0;">«{card['text']}»</h4>
+        <p style="margin:4px 0;"><b>الملخص:</b> {card['summary']}</p>
+        {f'<p style="margin:4px 0;color:#6b5710;font-size:13px;"><b>سبب الظهور:</b> {match_text}</p>' if match_text else ''}
+    </div>
+    """, unsafe_allow_html=True)
+    card_id = card_identity(card)
+    if "favorites" not in st.session_state:
+        st.session_state.favorites = set()
+    action_col1, action_col2 = st.columns(2)
+    with action_col1:
+        st.button("★ إزالة من المفضلة" if card_id in st.session_state.favorites else "☆ حفظ في المفضلة", key=f"fav_{key_prefix}_{card_id}", on_click=toggle_favorite, args=(card_id,), use_container_width=True)
+    with action_col2:
+        st.download_button("تنزيل البطاقة للنسخ", data=card_to_markdown(card), file_name=f"hadith-card-{abs(hash(card_id))}.md", mime="text/markdown", key=f"download_{key_prefix}_{card_id}", use_container_width=True)
+    with st.expander("عرض التحليل الكامل للبطاقة"):
+        show_card(card)
 # ═══════════════════════════════════════════════════════
 # الصفحة 1: الرئيسية
 # ═══════════════════════════════════════════════════════
@@ -1431,18 +1510,19 @@ def home_page():
     </div>
     """, unsafe_allow_html=True)
 
-    # ماذا يقدم الموقع؟ (3 بطاقات قابلة للتنقل)
-    st.markdown("### ✨ ماذا يقدم لك الموقع؟")
+    # مسارات البدء: توجيه المستخدم إلى الإجراء المناسب دون الحاجة إلى قراءة الدليل.
+    st.markdown("### 🚀 من أين أبدأ؟")
+    st.markdown("اختر المسار الأقرب إلى هدفك؛ ويمكنك الانتقال بين المسارات لاحقًا من القائمة العلوية.")
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("""<div class="step-card" style="text-align:center;"><h4>📚 تعلّم</h4>الأبعاد العشرة لحياة النبي ﷺ:<br>كيف يفكر ويشعر ويتصرف من مركز ثابت.</div>""", unsafe_allow_html=True)
-        if st.button("ابدأ التعلم ⬅️", key="go_dims", use_container_width=True): st.switch_page(pg_dims)
+        st.markdown("""<div class="step-card" style="text-align:center;border:3px solid #d4af37;background:#fffdf2;"><div style="font-size:13px;color:#8b6f16;font-weight:bold;">المسار الموصى به للمستخدم الجديد</div><h4>📚 تعلّم الأبعاد</h4>افهم الخريطة العامة للأبعاد العشرة، ثم انتقل إلى الفهرس للتطبيق.</div>""", unsafe_allow_html=True)
+        if st.button("ابدأ من الأبعاد العشرة", key="go_dims", type="primary", use_container_width=True): st.switch_page(pg_dims)
     with c2:
-        st.markdown("""<div class="step-card" style="text-align:center;"><h4>📊 استكشف</h4>فهرس ١٠٠ بطاقة حديث جاهزة<br>والنموذج الأولي الكامل</div>""", unsafe_allow_html=True)
-        if st.button("استكشف الفهرس ⬅️", key="go_index", use_container_width=True): st.switch_page(pg_index)
+        st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">للباحث عن حديث</div><h4>📊 استكشف الفهرس</h4>ابحث في ١٠٠ بطاقة، وتصفح النصوص والمصادر والأبعاد المرتبطة بها.</div>""", unsafe_allow_html=True)
+        if st.button("اذهب إلى الفهرس", key="go_index", use_container_width=True): st.switch_page(pg_index)
     with c3:
-        st.markdown("""<div class="step-card" style="text-align:center;"><h4>🔍 حلّل</h4>تحليل فوري من الفهرس<br>أو ذكي بالذكاء الاصطناعي</div>""", unsafe_allow_html=True)
-        if st.button("جرّب التحليل ⬅️", key="go_analysis", use_container_width=True): st.switch_page(pg_analysis)
+        st.markdown("""<div class="step-card" style="text-align:center;"><div style="font-size:13px;color:#0d4d3d;font-weight:bold;">لمن لديه نص حديث</div><h4>🔍 ابدأ التحليل</h4>ألصق النص لتحليل فوري محلي، أو اختر التحليل الذكي عند توفر الإعدادات اللازمة.</div>""", unsafe_allow_html=True)
+        if st.button("افتح صفحة التحليل", key="go_analysis", use_container_width=True): st.switch_page(pg_analysis)
 
     # الخريطة الإشعاعية (مرة واحدة هنا فقط)
     st.markdown("### 🗺️ خريطة المنهج — نظرة عامة")
@@ -1580,31 +1660,68 @@ def dimensions_page():
 # ═══════════════════════════════════════════════════════
 # الصفحة 3: النموذج الأولي والفهرس (مدمجة)
 # ═══════════════════════════════════════════════════════
+def _set_index_search_pending(value):
+    st.session_state["index_search_pending"] = value
+
 def index_page():
+    if "index_search_pending" in st.session_state:
+        st.session_state["index_search_top"] = st.session_state.pop("index_search_pending")
     st.markdown("""
     <div class="main-title"><h1>📊 النموذج الأولي والفهرس</h1>
     <p>الخطة النظرية + تطبيقها العملي على ١٠٠ بطاقة حديث</p></div>
     """, unsafe_allow_html=True)
 
-    # ─── الفهرس أولاً: بارز وواضح ───
+    # ─── الفهرس أولاً: بحث وتصفح موجهان ───
     st.markdown("### 📖 فهرس الأحاديث — ١٠٠ بطاقة جاهزة بدون انتظار")
-    st.markdown("""<div class="idea-box">كل بطاقة تحليل كامل موثق: البُعد، الثابت، المتغير، وكيف كان يفكر ويشعر ويتصرف ﷺ. <b>ابحث بكلمة واحدة</b> (رفق، نية، صدقة...) أو تصفح حسب البُعد.</div>""", unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["🔍 بحث في الفهرس", "🗂️ تصفح حسب البُعد"])
+    st.markdown("""<div class="idea-box">ابدأ بكلمة مثل <b>رفق</b> أو <b>نية</b> أو <b>صدق</b>، ثم استخدم الفلاتر لتضييق النتائج. تظهر البطاقة مختصرة أولًا، وتُفتح التفاصيل عند الحاجة.</div>""", unsafe_allow_html=True)
+    tab1, tab2, tab3 = st.tabs(["🔍 بحث في الفهرس", "🗂️ تصفح حسب البُعد", "⭐ المفضلة"])
     with tab1:
-        query = st.text_input("اكتب كلمة من الحديث أو الثابت:", placeholder="مثال: رفق، نية، صدق...", key="index_search_top")
-        if query:
-            results = search_hadith_cards(query)
-            if results:
-                st.success(f"✅ {len(results)} نتيجة من الفهرس")
-                for card in results:
-                    with st.expander(f"«{card['text'][:45]}...» — {card['source']}"): show_card(card)
-            else: st.info("❌ لم يُعثر عليه في الفهرس — جرّب صفحة التحليل للتحليل الذكي")
+        query = st.text_input("ابحث في نص الحديث أو بياناته:", placeholder="مثال: رفق، نية، صدق...", key="index_search_top")
+        st.caption("تلميح: البحث يوحّد أشكال الألف والتشكيل، ويعطي أولوية لمطابقة نص الحديث.")
+        quick_words = ["رفق", "نية", "صدقة", "رحمة", "صدق"]
+        quick_cols = st.columns(len(quick_words))
+        for quick_col, quick_word in zip(quick_cols, quick_words):
+            with quick_col:
+                st.button(quick_word, key=f"quick_search_{quick_word}", use_container_width=True, on_click=_set_index_search_pending, args=(quick_word,))
+        filter_col1, filter_col2, filter_col3 = st.columns(3)
+        with filter_col1:
+            search_dim = st.selectbox("تصفية حسب البُعد", ["كل الأبعاد"] + [d["name"] for d in DIMENSIONS], key="index_search_dim")
+        with filter_col2:
+            search_source = st.selectbox("تصفية حسب المصدر", ["كل المصادر"] + sorted({c["source"] for c in HADITH_CARDS}), key="index_search_source")
+        with filter_col3:
+            result_limit = st.selectbox("عدد النتائج", [10, 25, 50, len(HADITH_CARDS)], format_func=lambda n: "الكل" if n == len(HADITH_CARDS) else str(n), key="index_result_limit")
+        dim_filter = None if search_dim == "كل الأبعاد" else search_dim
+        source_filter = None if search_source == "كل المصادر" else search_source
+        if query.strip():
+            ranked_results = ranked_search_hadith_cards(query, result_limit, dim_filter, source_filter)
+            if ranked_results:
+                st.success(f"✅ عُثر على {len(ranked_results)} نتيجة. الترتيب يبدأ بالمطابقة الأقوى.")
+                for _, _, card, matched_fields in ranked_results:
+                    show_index_result(card, matched_fields, key_prefix="search")
+            else:
+                st.info("لم تظهر نتائج بهذه الشروط. جرّب كلمة أقصر، أو أزل أحد الفلاتر، أو اختر من البحث السريع أعلاه.")
+        else:
+            st.markdown("#### ابدأ بإحدى الكلمات المقترحة")
+            st.info("اكتب كلمة في مربع البحث أو اضغط أحد الأزرار السريعة لعرض البطاقات ذات الصلة.")
     with tab2:
-        sel_dim = st.selectbox("اختر البُعد:", [d["name"] for d in DIMENSIONS], key="index_dim_top")
-        dim_cards = [c for c in HADITH_CARDS if c["dim"] == sel_dim]
-        st.markdown(f"**{len(dim_cards)} أحاديث في بُعد {sel_dim}:**")
+        browse_dim = st.selectbox("اختر البُعد:", [d["name"] for d in DIMENSIONS], key="index_dim_top")
+        browse_source = st.selectbox("تصفية المصدر (اختياري):", ["كل المصادر"] + sorted({c["source"] for c in HADITH_CARDS}), key="index_browse_source")
+        dim_cards = [c for c in HADITH_CARDS if c["dim"] == browse_dim and (browse_source == "كل المصادر" or c["source"] == browse_source)]
+        st.markdown(f"**{len(dim_cards)} بطاقات في بُعد {browse_dim}:**")
         for card in dim_cards:
-            with st.expander(f"«{card['text'][:45]}...» — {card['source']}"): show_card(card)
+            show_index_result(card, key_prefix="browse")
+    with tab3:
+        favorites = st.session_state.get("favorites", set())
+        favorite_cards = [card for card in HADITH_CARDS if card_identity(card) in favorites]
+        st.markdown("### ⭐ البطاقات المحفوظة لهذه الجلسة")
+        if not favorite_cards:
+            st.info("لم تحفظ أي بطاقة بعد. استخدم زر «حفظ في المفضلة» أسفل أي بطاقة، وستظهر هنا.")
+        else:
+            st.success(f"لديك {len(favorite_cards)} بطاقة محفوظة.")
+            favorites_text = "\n\n---\n\n".join(card_to_markdown(card) for card in favorite_cards)
+            st.download_button("تنزيل كل المفضلة بصيغة Markdown", data=favorites_text, file_name="hadith-favorites.md", mime="text/markdown", key="download_all_favorites", use_container_width=True)
+            for card in favorite_cards:
+                show_index_result(card, key_prefix="favorites")
     st.markdown("---")
 
     # لماذا هذا مهم
@@ -1674,89 +1791,104 @@ def analysis_page():
     hadith_input = st.text_area("نص الحديث:", value=st.session_state.selected_example,
                                 height=110, placeholder="اكتب نص الحديث هنا...")
 
+    st.markdown("### اختر نوع التحليل")
+    mode_col1, mode_col2 = st.columns(2)
+    with mode_col1:
+        st.info("**⚡ التحليل الفوري**\n\nبحث محلي سريع في فهرس البطاقات وقاعدة البخاري المتاحة، دون الحاجة إلى مفتاح API.")
+    with mode_col2:
+        st.info("**🧠 التحليل الذكي**\n\nتحليل أوسع عبر Gemini، وقد يحتاج إلى مفتاح API ووقت أطول. لا يُعد بديلًا عن التحقق الشرعي.")
     col1, col2 = st.columns(2)
     with col1:
-        instant_btn = st.button("⚡ تحليل فوري (الفهرس + البخاري)", use_container_width=True)
+        instant_btn = st.button("⚡ ابدأ التحليل الفوري", type="primary", use_container_width=True)
     with col2:
-        ai_btn = st.button("🧠 تحليل ذكي (Gemini)", use_container_width=True)
+        ai_btn = st.button("🧠 ابدأ التحليل الذكي", use_container_width=True)
 
     # ─── تحليل فوري ───
     if instant_btn:
         if not hadith_input.strip():
             st.warning("⚠️ أدخل نص حديث أولًا")
         else:
-            progress = st.progress(30)
-            status = st.empty()
-            status.text("🔍 جاري البحث في الفهرس الموثق...")
-            time.sleep(0.3)
-
-            cards, bukhari = rag_search(hadith_input)
-            progress.progress(70)
-            status.text("🔍 جاري البحث في صحيح البخاري...")
-            time.sleep(0.3)
-            progress.progress(100)
-            status.text("✅ اكتمل البحث")
+            # لا يوجد تأخير اصطناعي: البحث المحلي سريع ويُعرض فور اكتماله.
+            with st.spinner("🔍 يبحث في الفهرس وقاعدة البخاري..."):
+                ranked_cards = ranked_search_hadith_cards(hadith_input, limit=10)
+                cards = [item[2] for item in ranked_cards]
+                bukhari = search_bukhari(hadith_input) if bukhari_stats() > 0 else []
+            st.session_state["last_instant_input"] = hadith_input
+            st.session_state["last_instant_cards"] = cards
 
             if cards or bukhari:
-                st.success("✅ نتائج فورية — من المصادر الموثقة")
-
+                st.success("✅ اكتمل التحليل الفوري من المصادر المحلية المتاحة")
+                st.caption("النتائج التالية تساعد على الاستكشاف، ولا تُنشئ حكمًا شرعيًا جديدًا.")
                 if cards:
-                    st.markdown(f"### 📖 من الفهرس ({len(cards)} نتيجة)")
-                    for card in cards:
-                        show_card(card)
-
+                    st.markdown(f"### 📖 بطاقات مرتبطة من الفهرس ({len(cards)} نتيجة)")
+                    for score, _, card, matched_fields in ranked_cards:
+                        st.markdown(f"#### درجة المطابقة: {score} · الحقول المطابقة: {', '.join(matched_fields)}")
+                        st.markdown("**العلاقة المنهجية في هذه البطاقة:**")
+                        rel_col1, rel_col2, rel_col3 = st.columns(3)
+                        with rel_col1:
+                            st.markdown(f"**الثابت**\n\n{card['constant']}")
+                        with rel_col2:
+                            st.markdown(f"**المتغير**\n\n{card['variable']}")
+                        with rel_col3:
+                            st.markdown(f"**الغاية**\n\n{card['goal']}")
+                        show_index_result(card, matched_fields, key_prefix="analysis")
                 if bukhari:
-                    st.markdown(f"### 📗 من صحيح البخاري ({len(bukhari)} نتيجة)")
+                    st.markdown(f"### 📗 نتائج من صحيح البخاري ({len(bukhari)} نتيجة)")
                     for h in bukhari[:5]:
                         with st.expander(f"حديث رقم {h['number']} — {h['book']}"):
                             st.markdown(f"**النص:** {h['text']}")
-                            st.markdown(f"<span class='source-tag'>صحيح البخاري ({h['number']})</span>",
-                                        unsafe_allow_html=True)
-                            st.info("هذا الحديث موجود في البخاري ولم يُحلَّل بعد في الفهرس — يمكن تحليله بالذكاء الاصطناعي")
+                            st.markdown(f"<span class='source-tag'>صحيح البخاري ({h['number']})</span>", unsafe_allow_html=True)
+                            st.info("هذا النص موجود في البخاري، لكنه غير مربوط حاليًا ببطاقة تحليلية في الفهرس.")
+                            st.caption("يمكن استخدام التحليل الذكي كمسودة مساعدة مع ضرورة المراجعة المتخصصة.")
             else:
-                st.info("❌ لم يُعثر على الحديث في الفهرس ولا في البخاري")
-                st.markdown("""
-                **الخيارات:**
-                - تحقق بنفسك في: الدرر السنية (dorar.net) | المكتبة الشاملة (shamela.ws)
-                - أو استخدم **التحليل الذكي** أعلاه مع الحذر
-                """)
+                st.info("لم يُعثر على نتيجة محلية مطابقة.")
+                st.markdown("جرّب عبارة أقصر أو راجع المصادر الخارجية، أو استخدم التحليل الذكي بحذر بعد التحقق من النص.")
 
-    # ─── تحليل ذكي ───
+        # ─── تحليل ذكي ───
     if ai_btn:
         if not hadith_input.strip():
-            st.warning("⚠️ أدخل نص حديث أولًا")
+            st.warning("⚠️ أدخل نص حديث أولًا قبل تشغيل Gemini.")
         else:
-            # فحص سريع في الفهرس أولاً (RAG)
+            # تنبيه المستخدم إلى وجود نتيجة محلية قد تكون أسرع وأوضح.
             cards, _ = rag_search(hadith_input)
             if cards:
-                st.info(f"💡 تلميح: هذا الحديث موجود في الفهرس — النتيجة الفورية أدق وأسرع. "
-                        f"أعلى تشابه: {cards[0]['source']}")
-
+                st.info(f"💡 توجد بطاقة محلية مرتبطة بهذا النص ({cards[0]['source']}). ابدأ بالتحليل الفوري إن كنت تريد نتيجة أسرع قابلة للتتبع.")
             try:
                 api_key = st.secrets["GEMINI_API_KEY"]
             except Exception:
-                st.error("❌ لم يتم تكوين GEMINI_API_KEY في Secrets.")
-                st.stop()
+                api_key = ""
+            if not api_key:
+                st.warning("🔑 التحليل الذكي غير مفعّل حاليًا.")
+                st.markdown("""
+                لإتاحة Gemini، أضف المفتاح باسم `GEMINI_API_KEY` في **Secrets** الخاصة بالتطبيق، ثم أعد المحاولة. لا تضع المفتاح داخل الكود أو في الرسائل.
 
-            progress = st.progress(20)
-            status = st.empty()
-            status.text("⏳ جاري التحقق من المصادر...")
-            time.sleep(0.5)
-            progress.progress(50)
-            status.text("🧠 جاري التحليل بالنموذج — قد يستغرق 2-5 دقائق للدقة في المصادر...")
-
-            result, error = analyze_hadith_ai(hadith_input, api_key)
-
-            progress.progress(100)
-            status.text("✅ اكتمل التحليل")
-
-            if error:
-                st.error(f"❌ خطأ: {error}")
+                يمكنك استخدام **التحليل الفوري** دون مفتاح API؛ فهو يبحث في الفهرس المحلي وقاعدة البخاري المتاحة.
+                """)
             else:
-                st.success("✅ تم التحليل بنجاح")
-                st.markdown("---")
-                st.markdown("### 📋 بطاقة الموقف")
-                st.markdown(result)
+                st.warning("⚠️ هذه النتيجة مولدة آليًا للمساعدة على الاستكشاف، وليست نصًا موثقًا ولا حكمًا شرعيًا. تحقّق من الحديث والمصادر لدى متخصص.")
+                with st.spinner("🧠 يجري Gemini التحليل — قد يستغرق وقتًا أطول من البحث الفوري..."):
+                    result, error = analyze_hadith_ai(hadith_input, api_key)
+                if error:
+                    error_text = str(error)
+                    if "429" in error_text or "quota" in error_text.lower():
+                        st.error("تعذر إكمال التحليل بسبب حدود الاستخدام أو الحصة المتاحة. جرّب التحليل الفوري أو أعد المحاولة لاحقًا.")
+                    elif "401" in error_text or "403" in error_text or "api key" in error_text.lower():
+                        st.error("تعذر التحقق من مفتاح Gemini. راجع قيمة `GEMINI_API_KEY` وصلاحياته في Secrets.")
+                    else:
+                        st.error(f"تعذر إكمال التحليل الذكي: {error_text}")
+                elif result:
+                    st.session_state["last_ai_input"] = hadith_input
+                    st.session_state["last_ai_result"] = result
+                    st.success("✅ اكتمل التحليل الذكي")
+                    st.markdown("### 🧠 نتيجة مولدة آليًا — تحتاج مراجعة")
+                    st.markdown("""
+                    <div class="disclaimer">
+                    <strong>وسم النتيجة:</strong> المحتوى التالي مولد بواسطة الذكاء الاصطناعي، وقد يحتوي على نقص أو خطأ أو استنتاج غير موثق. لا يُعامل كمصدر ديني مستقل.
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.markdown(result)
+                    st.caption("النص المدخل للتحليل محفوظ لهذه الجلسة فقط: لا يُعد ذلك توثيقًا للمصدر.")
+
 
     st.markdown("""
     <div class="disclaimer">
