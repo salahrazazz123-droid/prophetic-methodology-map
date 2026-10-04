@@ -2,7 +2,7 @@
 
 خريطة إشعاعية للثوابت والمتغيرات في الأحاديث النبوية
 
-🔗 الرابط المباشر (تجربة فورية): https://ic-methodology-map.streamlit.app
+🔗 الرابط المباشر (تجربة فورية): https://prophetic-methodology-map.streamlit.app 
 
 ---
 
