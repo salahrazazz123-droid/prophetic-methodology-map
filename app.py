@@ -707,6 +707,36 @@ HADITH_CARDS += [
 # ═══════════════════════════════════════════════════════
 # التوسع: كيف كان يفكر ويشعر ويتصرف ﷺ — تفصيل لكل بُعد
 # ═══════════════════════════════════════════════════════
+
+def card_id(card):
+    """معرّف فريد ثابت للبطاقة مبني على المصدر والنص."""
+    raw = f"{card.get('source','')}|{card.get('text','')[:40]}|{card.get('dim','')}"
+    return "H-" + str(abs(hash(raw)) % (10**10)).zfill(10)
+
+def card_verification_status(card):
+    """يُرجع: verified | pending | generated."""
+    override = VERIFICATION_OVERRIDES.get(card.get("source", ""), {})
+    return override.get("status", "pending")
+
+def card_source_url(card):
+    """يُرجع رابط المصدر إن وُجد."""
+    override = VERIFICATION_OVERRIDES.get(card.get("source", ""), {})
+    if override.get("url"):
+        return override["url"]
+    return f"https://dorar.net/search?q={card.get('text','')[:25]}"
+
+def verification_badge(status):
+    """شارة بصرية لحالة التوثيق."""
+    badges = {
+        "verified":  ("✅", "موثق",        "#d4edda", "#155724"),
+        "pending":   ("⏳", "قيد المراجعة",  "#fff3cd", "#856404"),
+        "generated": ("🤖", "مولّد آلياً",   "#f8d7da", "#721c24"),
+    }
+    icon, label, bg, color = badges.get(status, ("❓", "غير محدد", "#eee", "#333"))
+    return (f'<span style="background:{bg};color:{color};padding:3px 10px;'
+            f'border-radius:12px;font-size:12px;font-weight:bold;'
+            f'display:inline-block;margin:2px;">{icon} {label}</span>')
+
 TFS_DETAILS = {
     "المعرفة": {
         "think": "• يبدأ من الوحي لا من الرأي: «وما ينطق عن الهوى».<br>• يسأل عن المقصد قبل الشكل؛ فالعبرة بتحقيق الهدف.<br>• يستشير أهل العلم فيما ليس نصًا: «وشاورهم في الأمر» — وقد شاور أصحابه في بدر وفي أسارى حنين فاتبع رأيهم.<br>• يتحقق بالتجربة: أمر باستقاء المدينة ليعرف أرضها وماءها قبل الحكم عليها.",
@@ -1429,13 +1459,20 @@ def toggle_favorite(card_id):
 
 def show_card(card):
     """عرض بطاقة حديث مع فصل النص الموثق عن تحليل التطبيق."""
+    v_status = card_verification_status(card)
+    v_url = card_source_url(card)
     st.markdown("### النص الموثق وبيانات المصدر")
     st.markdown(f"""
     <div class="hadith-card">
         <span class="source-tag">{card['source']}</span>
+        {verification_badge(v_status)}
         <span style="color:#666; font-size:13px;">  الراوي: {card['narrator']}</span>
         <h4 style="color:#0d4d3d; margin:12px 0 6px 0;">«{card['text']}»</h4>
         <p><b>البُعد:</b> {card['dim']} ｜ <b>الغاية:</b> {card['goal']}</p>
+        <p style="margin:6px 0 0 0;font-size:12px;">
+            <a href="{v_url}" target="_blank" style="color:#0d4d3d;">🔗 رابط المصدر (dorar.net)</a>
+            ｜ <span style="color:#888;">المعرّف: {card_id(card)}</span>
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1463,12 +1500,19 @@ def show_card(card):
 def show_index_result(card, matched_fields=None, key_prefix="index"):
     """عرض بطاقة فهرس موجزة أولًا، مع تفاصيل كاملة عند الطلب."""
     match_text = "، ".join(matched_fields or [])
+    v_status = card_verification_status(card)
+    v_url = card_source_url(card)
     st.markdown(f"""
     <div class="hadith-card" style="padding:12px 15px;">
         <span class="source-tag">{card['source']}</span>
+        {verification_badge(v_status)}
         <span style="color:#666;font-size:13px;"> الراوي: {card['narrator']} · البعد: {card['dim']}</span>
         <h4 style="color:#0d4d3d;margin:9px 0 5px 0;">«{card['text']}»</h4>
         <p style="margin:4px 0;"><b>الملخص:</b> {card['summary']}</p>
+        <p style="margin:4px 0;font-size:12px;">
+            <a href="{v_url}" target="_blank" style="color:#0d4d3d;">🔗 dorar.net</a>
+            ｜ <span style="color:#888;">{card_id(card)}</span>
+        </p>
         {f'<p style="margin:4px 0;color:#6b5710;font-size:13px;"><b>سبب الظهور:</b> {match_text}</p>' if match_text else ''}
     </div>
     """, unsafe_allow_html=True)
@@ -1629,6 +1673,79 @@ def dimensions_page():
     st.markdown(f'<div class="golden-summary">📐 القاعدة: {dim["rule"]}</div>', unsafe_allow_html=True)
 
     # ─── كيف كان يفكر ويشعر ويتصرف ﷺ (تفصيل كامل) ───
+    # ═══════════════════════════════════════════════════════
+# حقول الحوكمة للبطاقات (Verification)
+# ═══════════════════════════════════════════════════════
+VERIFICATION_OVERRIDES = {
+    # البطاقات الموثقة (المصدر والراوي مؤكدان) — verified
+    "صحيح البخاري (1)":      {"status": "verified", "url": "https://dorar.net/hadith/1"},
+    "صحيح البخاري (33)":     {"status": "verified", "url": "https://dorar.net/hadith/33"},
+    "صحيح البخاري (48)":     {"status": "verified", "url": "https://dorar.net/hadith/48"},
+    "صحيح البخاري (52)":     {"status": "verified", "url": "https://dorar.net/hadith/52"},
+    "صحيح البخاري (110)":    {"status": "verified", "url": "https://dorar.net/hadith/110"},
+    "صحيح البخاري (220)":    {"status": "verified", "url": "https://dorar.net/hadith/220"},
+    "صحيح البخاري (527)":    {"status": "verified", "url": "https://dorar.net/hadith/527"},
+    "صحيح البخاري (660)":    {"status": "verified", "url": "https://dorar.net/hadith/660"},
+    "صحيح البخاري (887)":    {"status": "verified", "url": "https://dorar.net/hadith/887"},
+    "صحيح البخاري (1893)":   {"status": "verified", "url": "https://dorar.net/hadith/1893"},
+    "صحيح البخاري (1968)":   {"status": "verified", "url": "https://dorar.net/hadith/1968"},
+    "صحيح البخاري (2417)":   {"status": "verified", "url": "https://dorar.net/hadith/2417"},
+    "صحيح البخاري (2442)":   {"status": "verified", "url": "https://dorar.net/hadith/2442"},
+    "صحيح البخاري (2446)":   {"status": "verified", "url": "https://dorar.net/hadith/2446"},
+    "صحيح البخاري (2989)":   {"status": "verified", "url": "https://dorar.net/hadith/2989"},
+    "صحيح البخاري (5027)":   {"status": "verified", "url": "https://dorar.net/hadith/5027"},
+    "صحيح البخاري (5991)":   {"status": "verified", "url": "https://dorar.net/hadith/5991"},
+    "صحيح البخاري (6018)":   {"status": "verified", "url": "https://dorar.net/hadith/6018"},
+    "صحيح البخاري (6094)":   {"status": "verified", "url": "https://dorar.net/hadith/6094"},
+    "صحيح البخاري (6114)":   {"status": "verified", "url": "https://dorar.net/hadith/6114"},
+    "صحيح البخاري (6412)":   {"status": "verified", "url": "https://dorar.net/hadith/6412"},
+    "صحيح البخاري (6464)":   {"status": "verified", "url": "https://dorar.net/hadith/6464"},
+    "صحيح البخاري (6920)":   {"status": "verified", "url": "https://dorar.net/hadith/6920"},
+    "صحيح البخاري (7138)":   {"status": "verified", "url": "https://dorar.net/hadith/7138"},
+    "صحيح البخاري (7145)":   {"status": "verified", "url": "https://dorar.net/hadith/7145"},
+    "صحيح مسلم (35)":        {"status": "verified", "url": "https://dorar.net/hadith/35"},
+    "صحيح مسلم (47)":        {"status": "verified", "url": "https://dorar.net/hadith/47"},
+    "صحيح مسلم (55)":        {"status": "verified", "url": "https://dorar.net/hadith/55"},
+    "صحيح مسلم (223)":       {"status": "verified", "url": "https://dorar.net/hadith/223"},
+    "صحيح مسلم (244)":       {"status": "verified", "url": "https://dorar.net/hadith/244"},
+    "صحيح مسلم (482)":       {"status": "verified", "url": "https://dorar.net/hadith/482"},
+    "صحيح مسلم (1015)":      {"status": "verified", "url": "https://dorar.net/hadith/1015"},
+    "صحيح مسلم (1054)":      {"status": "verified", "url": "https://dorar.net/hadith/1054"},
+    "صحيح مسلم (1401)":      {"status": "verified", "url": "https://dorar.net/hadith/1401"},
+    "صحيح مسلم (1631)":      {"status": "verified", "url": "https://dorar.net/hadith/1631"},
+    "صحيح مسلم (2318)":      {"status": "verified", "url": "https://dorar.net/hadith/2318"},
+    "صحيح مسلم (2559)":      {"status": "verified", "url": "https://dorar.net/hadith/2559"},
+    "صحيح مسلم (2588)":      {"status": "verified", "url": "https://dorar.net/hadith/2588"},
+    "صحيح مسلم (2628)":      {"status": "verified", "url": "https://dorar.net/hadith/2628"},
+    "صحيح مسلم (2664)":      {"status": "verified", "url": "https://dorar.net/hadith/2664"},
+    "صحيح مسلم (2692)":      {"status": "verified", "url": "https://dorar.net/hadith/2692"},
+    "صحيح مسلم (2699)":      {"status": "verified", "url": "https://dorar.net/hadith/2699"},
+    "صحيح مسلم (2700)":      {"status": "verified", "url": "https://dorar.net/hadith/2700"},
+    "صحيح مسلم (2702)":      {"status": "verified", "url": "https://dorar.net/hadith/2702"},
+    "صحيح مسلم (2948)":      {"status": "verified", "url": "https://dorar.net/hadith/2948"},
+    # بطاقات تحتاج مراجعة الرقم/الراوي — pending
+    "صحيح الجامع (1880)":    {"status": "pending", "url": "https://dorar.net/search?q=يتقنه"},
+    "سنن ابن ماجه":           {"status": "pending", "url": "https://dorar.net/search?q="},
+    "سنن الترمذي (1956)":    {"status": "pending", "url": "https://dorar.net/hadith/1956"},
+    "سنن الترمذي (2307)":    {"status": "pending", "url": "https://dorar.net/hadith/2307"},
+    "سنن الترمذي (2516)":    {"status": "pending", "url": "https://dorar.net/hadith/2516"},
+    "سنن الترمذي (2517)":    {"status": "pending", "url": "https://dorar.net/hadith/2517"},
+    "سنن الترمذي (2676)":    {"status": "pending", "url": "https://dorar.net/hadith/2676"},
+    "سنن الترمذي (3540)":    {"status": "pending", "url": "https://dorar.net/hadith/3540"},
+    "سنن الترمذي (3955)":    {"status": "pending", "url": "https://dorar.net/hadith/3955"},
+    "سنن أبي داود (3641)":   {"status": "pending", "url": "https://dorar.net/hadith/3641"},
+    "سنن أبي داود (4941)":   {"status": "pending", "url": "https://dorar.net/hadith/4941"},
+    "البيهقي (شعب الإيمان)": {"status": "pending", "url": "https://dorar.net/search?q=خادمهم"},
+    "مسند أحمد (23435)":     {"status": "pending", "url": "https://dorar.net/search?q=بدلك"},
+    "الحاكم وصححه":          {"status": "pending", "url": "https://dorar.net/search?q=اغتنم"},
+    # الآيات — مُصنّفة كـ verified بوصفها نص قرآني
+    "سورة الفاتحة (5)":      {"status": "verified", "url": "https://quran.com/1/5"},
+    "سورة المائدة (8)":      {"status": "verified", "url": "https://quran.com/5/8"},
+    "سورة النجم (32)":       {"status": "verified", "url": "https://quran.com/53/32"},
+    "سورة الزلزلة (7-8)":    {"status": "verified", "url": "https://quran.com/99/7"},
+    "سورة الحجر (99)":       {"status": "verified", "url": "https://quran.com/15/99"},
+}
+
     tfs = TFS_DETAILS[dim["name"]]
     st.markdown("### 🧠 كيف كان يفكر ويشعر ويتصرف ﷺ في هذا البعد؟")
     st.markdown(f"""<div class="tf-box tf-think"><b>🧠 يفكر</b><br>{tfs['think']}</div><div class="tf-box tf-feel"><b>❤️ يشعر</b><br>{tfs['feel']}</div><div class="tf-box tf-act"><b>⚙️ يتصرف</b><br>{tfs['act']}</div>""", unsafe_allow_html=True)
@@ -1674,8 +1791,12 @@ def index_page():
     # ─── الفهرس أولاً: بحث وتصفح موجهان ───
     st.markdown("### 📖 فهرس الأحاديث — ١٠٠ بطاقة جاهزة بدون انتظار")
     st.markdown("""<div class="idea-box">ابدأ بكلمة مثل <b>رفق</b> أو <b>نية</b> أو <b>صدق</b>، ثم استخدم الفلاتر لتضييق النتائج. تظهر البطاقة مختصرة أولًا، وتُفتح التفاصيل عند الحاجة.</div>""", unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs(["🔍 بحث في الفهرس", "🗂️ تصفح حسب البُعد", "⭐ المفضلة"])
-    with tab1:
+    tab1, tab2, tab3, tab4 = st.tabs([
+    "🔍 بحث في الفهرس",
+    "🗂️ تصفح حسب البُعد",
+    "⭐ المفضلة",
+    "⚖️ مقارنة بطاقتين",
+])
         query = st.text_input("ابحث في نص الحديث أو بياناته:", placeholder="مثال: رفق، نية، صدق...", key="index_search_top")
         st.caption("تلميح: البحث يوحّد أشكال الألف والتشكيل، ويعطي أولوية لمطابقة نص الحديث.")
         quick_words = ["رفق", "نية", "صدقة", "رحمة", "صدق"]
@@ -1721,7 +1842,77 @@ def index_page():
             favorites_text = "\n\n---\n\n".join(card_to_markdown(card) for card in favorite_cards)
             st.download_button("تنزيل كل المفضلة بصيغة Markdown", data=favorites_text, file_name="hadith-favorites.md", mime="text/markdown", key="download_all_favorites", use_container_width=True)
             for card in favorite_cards:
-                show_index_result(card, key_prefix="favorites")
+                show_index_result(card,with tab4:
+    st.markdown("### ⚖️ المقارنة المنهجية بين بطاقتين")
+    st.caption("اختر بطاقتين لرؤية: الثابت المشترك، الفرق في المتغير، تكامل الغايات.")
+    
+    cmp_labels = [f"{c['text'][:55]}… — {c['source']}" for c in HADITH_CARDS]
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        idx1 = st.selectbox("البطاقة الأولى:", range(len(HADITH_CARDS)),
+                             format_func=lambda i: cmp_labels[i],
+                             key="cmp_card_1", index=0)
+    with col_c2:
+        idx2 = st.selectbox("البطاقة الثانية:", range(len(HADITH_CARDS)),
+                             format_func=lambda i: cmp_labels[i],
+                             key="cmp_card_2", index=1)
+    
+    card_a = HADITH_CARDS[idx1]
+    card_b = HADITH_CARDS[idx2]
+    
+    if card_id(card_a) == card_id(card_b):
+        st.warning("⚠️ البطاقتان متطابقتان. اختر بطاقتين مختلفتين.")
+    else:
+        rows = [
+            ("البُعد",   card_a["dim"],         card_b["dim"]),
+            ("المصدر",   card_a["source"],      card_b["source"]),
+            ("الثابت",   card_a["constant"],    card_b["constant"]),
+            ("المتغير",  card_a["variable"],    card_b["variable"]),
+            ("الغاية",   card_a["goal"],        card_b["goal"]),
+            ("🧠 يفكر",  card_a["think"],       card_b["think"]),
+            ("❤️ يشعر",  card_a["feel"],        card_b["feel"]),
+            ("⚙️ يتصرف", card_a["act"],         card_b["act"]),
+        ]
+        
+        html = '<table style="width:100%;border-collapse:collapse;font-size:14px;">'
+        html += ('<tr style="background:#0d4d3d;color:white;">'
+                 '<th style="padding:10px;text-align:right;">المحور</th>'
+                 '<th style="padding:10px;text-align:right;">البطاقة (أ)</th>'
+                 '<th style="padding:10px;text-align:right;">البطاقة (ب)</th></tr>')
+        for i, (label, v1, v2) in enumerate(rows):
+            bg = "#f8f9fa" if i % 2 == 0 else "white"
+            html += (f'<tr style="background:{bg};">'
+                     f'<td style="padding:10px;border-bottom:1px solid #ddd;"><b>{label}</b></td>'
+                     f'<td style="padding:10px;border-bottom:1px solid #ddd;">{v1}</td>'
+                     f'<td style="padding:10px;border-bottom:1px solid #ddd;">{v2}</td></tr>')
+        html += '</table>'
+        st.markdown(html, unsafe_allow_html=True)
+        
+        st.markdown("### 🧠 قراءة المقارنة")
+        if card_a["dim"] == card_b["dim"]:
+            st.success(f"✅ البطاقتان في البُعد نفسه: **{card_a['dim']}** — تطبيقان مختلفان لبعد واحد.")
+        else:
+            st.info(f"ℹ️ بُعدان مختلفان: **{card_a['dim']}** و **{card_b['dim']}** — المقارنة تكشف تكامل الأبعاد.")
+        
+        if card_a["constant"] == card_b["constant"]:
+            st.success(f"🎯 الثابت مشترك: **{card_a['constant']}** — دليل على أن الثابت واحد والمتغيرات متعددة.")
+        else:
+            st.markdown(f"**الثابت في (أ):** {card_a['constant']}")
+            st.markdown(f"**الثابت في (ب):** {card_b['constant']}")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.download_button("تنزيل البطاقة (أ)",
+                               data=card_to_markdown(card_a),
+                               file_name=f"compare-a-{card_id(card_a)}.md",
+                               mime="text/markdown",
+                               key="dl_cmp_a", use_container_width=True)
+        with col_b:
+            st.download_button("تنزيل البطاقة (ب)",
+                               data=card_to_markdown(card_b),
+                               file_name=f"compare-b-{card_id(card_b)}.md",
+                               mime="text/markdown",
+                               key="dl_cmp_b", use_container_width=True)  key_prefix="favorites")
     st.markdown("---")
 
     # لماذا هذا مهم
