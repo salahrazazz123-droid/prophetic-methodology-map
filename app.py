@@ -4,6 +4,8 @@ import sqlite3
 import json
 import os
 import time
+import html
+import hashlib
 
 # ═══════════════════════════════════════════════════════
 # إعدادات الصفحة
@@ -108,11 +110,21 @@ st.markdown("""
     }
     [role="tablist"] { gap: 0.4rem; border-bottom: 2px solid #d9e2de; }
     [data-testid="stTab"] {
-        min-height: 48px; padding: 0.7rem 1rem; border-radius: 10px 10px 0 0;
-        font-size: 1rem; font-weight: 700; color: #174d3d;
+        min-height: 56px; padding: 0.85rem 1.3rem; border-radius: 10px 10px 0 0;
+        font-size: 1.05rem; font-weight: 700; color: #174d3d;
+        background: #eef3f1; border: 1px solid #d9e2de; border-bottom: none;
     }
     [data-testid="stTab"][aria-selected="true"] {
-        background: #e8f0ec; color: #0d4d3d; border-bottom: 3px solid #d4af37;
+        background: #0d4d3d; color: #fff; border-bottom: 3px solid #d4af37;
+    }
+    .dimension-card {
+        background: #f4f8f6; border: 1px solid #d9e2de; border-radius: 12px;
+        padding: 14px; text-align: center; min-height: 90px;
+    }
+    .dimension-card-active {
+        background: #0d4d3d; color: #fff; border-radius: 12px;
+        padding: 14px; text-align: center; min-height: 90px;
+        border: 2px solid #d4af37;
     }
     div.stButton > button, div[data-testid="stDownloadButton"] > button {
         min-height: 46px; border-radius: 10px; font-weight: 700;
@@ -132,16 +144,17 @@ st.markdown("""
         [data-testid="stHorizontalBlock"] > [data-testid="column"] {
             flex: 1 1 100% !important; min-width: 100% !important;
         }
-        [data-testid="stTopNavLink"] { white-space: nowrap; }
+        [data-testid="stTopNavLink"] { white-space: nowrap; font-size: 0.85rem; padding: 0.55rem 0.7rem; min-height: 40px; }
+        [data-testid="stNavigation"] { overflow-x: auto; }
         [role="tablist"] { overflow-x: auto; }
-        [data-testid="stTab"] { white-space: nowrap; min-width: max-content; }
+        [data-testid="stTab"] { white-space: nowrap; min-width: max-content; font-size: 0.95rem; min-height: 48px; padding: 0.6rem 0.9rem; }
         .hadith-card { padding: 12px !important; }
         table { display: block; max-width: 100%; overflow-x: auto; }
     }
     @media (max-width: 480px) {
         .main-title h1 { font-size: 20px; }
         .idea-box, .step-card, .important-box { padding: 14px; }
-        [data-testid="stTopNavLink"], [data-testid="stTab"] { font-size: 0.92rem; }
+        [data-testid="stTopNavLink"], [data-testid="stTab"] { font-size: 0.88rem; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -713,9 +726,9 @@ VERIFICATION_OVERRIDES = {
 
 
 def card_id(card):
-    """معرّف فريد ثابت للبطاقة مبني على المصدر والنص."""
+    """معرّف فريد ثابت للبطاقة مبني على المصدر والنص (md5 — ثابت عبر الجلسات)."""
     raw = f"{card.get('source','')}|{card.get('text','')[:40]}|{card.get('dim','')}"
-    return "H-" + str(abs(hash(raw)) % (10 ** 10)).zfill(10)
+    return "H-" + hashlib.md5(raw.encode("utf-8")).hexdigest()[:10]
 
 
 def card_verification_status(card):
@@ -732,7 +745,7 @@ def card_source_url(card):
         return "https://dorar.net/"
     # نأخذ أول 60 حرفاً لتجنب الروابط الطويلة جداً
     query = quote(text[:60])
-    return f"https://www.google.com/search?q=site:dorar.net+{query}"
+    return f"https://dorar.net/hadith/search?q={query}"
 def verification_badge(status):
     """شارة بصرية لحالة التوثيق."""
     badges = {
@@ -873,35 +886,6 @@ SYSTEM_PROMPT = """
 إذا لم تكن متأكدًا من مصدر حديث، توقف واذكر ذلك.
 الخطأ في نسبة حديث للنبي ﷺ أعظم من الاعتراف بالجهل.
 """
-# ═══════════════════════════════════════════════════════
-# دالة الاتصال بـ Gemini (الأساسية)
-# ═══════════════════════════════════════════════════════
-def analyze_hadith(hadith_text, api_key):
-    """تحليل الحديث باستخدام Gemini API."""
-    models_to_try = [
-        "gemini-flash-latest",
-        "gemini-flash-lite-latest",
-        "gemini-2.5-flash",
-        "gemini-3.5-flash-lite",
-    ]
-    last_error = None
-    for model_name in models_to_try:
-        try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(
-                model_name=model_name,
-                system_instruction=SYSTEM_PROMPT
-            )
-            response = model.generate_content(hadith_text)
-            return response.text, None
-        except Exception as e:
-            last_error = str(e)
-            if "429" in last_error or "quota" in last_error.lower():
-                continue
-            return None, last_error
-    return None, "⚠️ انتهت الحصص المجانية لجميع الموديلات. الرجاء المحاولة بعد قليل."
-
-
 # ═══════════════════════════════════════════════════════
 # الأمثلة المحللة مسبقاً — للعرض الفوري
 # ═══════════════════════════════════════════════════════
@@ -1147,20 +1131,25 @@ EXAMPLES = {
 
 
 # ═══════════════════════════════════════════════════════
-# قاعدة بيانات صحيح البخاري (SQLite)
+# قاعدة بيانات الأحاديث الموحّدة: صحيح البخاري + صحيح مسلم (SQLite)
 # ═══════════════════════════════════════════════════════
-DB_PATH = "bukhari.db"
-JSON_PATH = "bukhari.json"
+DB_PATH = "hadith.db"
+COLLECTIONS = {
+    "bukhari": {"label": "صحيح البخاري", "json": "bukhari.json"},
+    "muslim":  {"label": "صحيح مسلم",  "json": "muslim.json"},
+}
 
 
 @st.cache_resource
-def get_bukhari_db():
+def get_hadith_db():
+    """قاعدة موحّدة للأحاديث: تُحمَّل كل مجموعة من ملف JSON مستقل عند توفره."""
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS hadiths (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            collection TEXT NOT NULL,
             number INTEGER,
             text TEXT NOT NULL,
             book TEXT,
@@ -1169,44 +1158,57 @@ def get_bukhari_db():
     """)
     conn.commit()
 
-    c.execute("SELECT COUNT(*) FROM hadiths")
-    if c.fetchone()[0] == 0 and os.path.exists(JSON_PATH):
-        with open(JSON_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        for item in data:
-            c.execute(
-                "INSERT OR IGNORE INTO hadiths (id, number, text, book, narrator) VALUES (?,?,?,?,?)",
-                (item.get("id"), item.get("number"), item.get("text"),
-                 item.get("book", ""), item.get("narrator", ""))
-            )
-        conn.commit()
+    for key, info in COLLECTIONS.items():
+        c.execute("SELECT COUNT(*) FROM hadiths WHERE collection = ?", (key,))
+        if c.fetchone()[0] == 0 and os.path.exists(info["json"]):
+            with open(info["json"], "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for item in data:
+                c.execute(
+                    "INSERT INTO hadiths (collection, number, text, book, narrator) VALUES (?,?,?,?,?)",
+                    (key, item.get("number"), item.get("text"),
+                     item.get("book", ""), item.get("narrator", ""))
+                )
+            conn.commit()
     return conn
 
 
-def bukhari_stats():
-    conn = get_bukhari_db()
+def collections_status():
+    """عدد الأحاديث المحمّلة لكل مجموعة: {label: count}."""
+    conn = get_hadith_db()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM hadiths")
-    return c.fetchone()[0]
+    status = {}
+    for key, info in COLLECTIONS.items():
+        c.execute("SELECT COUNT(*) FROM hadiths WHERE collection = ?", (key,))
+        status[info["label"]] = c.fetchone()[0]
+    return status
 
 
-def search_bukhari(query, limit=10):
-    """بحث نصي في صحيح البخاري."""
-    conn = get_bukhari_db()
+def hadith_db_total():
+    """إجمالي الأحاديث في كل المجموعات المحمّلة."""
+    return sum(collections_status().values())
+
+
+def search_hadith_db(query, limit=10):
+    """بحث نصي في كل المجموعات المحمّلة (البخاري ومسلم وغيرها)."""
+    conn = get_hadith_db()
     c = conn.cursor()
     q = f"%{query}%"
     c.execute("""
         SELECT * FROM hadiths
         WHERE text LIKE ? OR book LIKE ? OR narrator LIKE ?
-        ORDER BY number LIMIT ?
+        ORDER BY collection, number LIMIT ?
     """, (q, q, q, limit))
     return c.fetchall()
 
 
-def get_hadith_by_number(number):
-    conn = get_bukhari_db()
+def get_hadith_by_number(number, collection=None):
+    conn = get_hadith_db()
     c = conn.cursor()
-    c.execute("SELECT * FROM hadiths WHERE number = ?", (number,))
+    if collection:
+        c.execute("SELECT * FROM hadiths WHERE number = ? AND collection = ?", (number, collection))
+    else:
+        c.execute("SELECT * FROM hadiths WHERE number = ?", (number,))
     return c.fetchone()
 
 
@@ -1239,7 +1241,7 @@ def ranked_search_hadith_cards(query, limit=10, dim_filter=None, source_filter=N
     for card in HADITH_CARDS:
         if dim_filter and card["dim"] != dim_filter:
             continue
-        if source_filter and card["source"] != source_filter:
+        if source_filter and not str(card["source"]).startswith(source_filter):
             continue
         fields = {
             "نص الحديث": normalize_arabic(card["text"]),
@@ -1268,10 +1270,10 @@ def search_hadith_cards(query, limit=10, dim_filter=None, source_filter=None):
 
 
 def rag_search(query):
-    """بحث موحّد: الفهرس + البخاري."""
+    """بحث موحّد: الفهرس + قاعدة الأحاديث (البخاري ومسلم)."""
     cards = search_hadith_cards(query)
-    bukhari = search_bukhari(query) if bukhari_stats() > 0 else []
-    return cards, bukhari
+    db_hits = search_hadith_db(query) if hadith_db_total() > 0 else []
+    return cards, db_hits
 
 
 # ═══════════════════════════════════════════════════════
@@ -1330,18 +1332,20 @@ def toggle_favorite(cid):
         st.session_state.favorites.add(cid)
 
 
-def show_card(card):
-    """عرض بطاقة حديث كاملة مع النص الموثق والتحليل."""
-    v_status = card_verification_status(card)
-    v_url = card_source_url(card)
-    st.markdown("### النص الموثق وبيانات المصدر")
-    st.markdown(f"""
+def show_card(card, show_header=True):
+    """عرض بطاقة حديث كاملة مع النص الموثق والتحليل.
+    show_header=False يعرض التحليل فقط دون تكرار نص الحديث (للعرض داخل نتائج الفهرس)."""
+    if show_header:
+        v_status = card_verification_status(card)
+        v_url = card_source_url(card)
+        st.markdown("### النص الموثق وبيانات المصدر")
+        st.markdown(f"""
     <div class="hadith-card">
-        <span class="source-tag">{card['source']}</span>
+        <span class="source-tag">{html.escape(str(card['source']))}</span>
         {verification_badge(v_status)}
-        <span style="color:#666; font-size:13px;">  الراوي: {card['narrator']}</span>
-        <h4 style="color:#0d4d3d; margin:12px 0 6px 0;">«{card['text']}»</h4>
-        <p><b>البُعد:</b> {card['dim']} ｜ <b>الغاية:</b> {card['goal']}</p>
+        <span style="color:#666; font-size:13px;">  الراوي: {html.escape(str(card['narrator']))}</span>
+        <h4 style="color:#0d4d3d; margin:12px 0 6px 0;">«{html.escape(str(card['text']))}»</h4>
+        <p><b>البُعد:</b> {html.escape(str(card['dim']))} ｜ <b>الغاية:</b> {html.escape(str(card['goal']))}</p>
         <p style="margin:6px 0 0 0;font-size:12px;">
             <a href="{v_url}" target="_blank" rel="noopener noreferrer" style="color:#0d4d3d;">🔗 فتح بحث النص في الدرر السنية</a>
             ｜ <span style="color:#888;">المعرّف: {card_id(card)}</span>
@@ -1353,20 +1357,20 @@ def show_card(card):
     with col1:
         st.markdown(f"""
         <div class="tf-box tf-think">
-            <b>⚓ الثابت:</b> {card['constant']}<br>
-            <b>🧠 يفكر:</b> {card['think']}
+            <b>⚓ الثابت:</b> {html.escape(str(card['constant']))}<br>
+            <b>🧠 يفكر:</b> {html.escape(str(card['think']))}
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""
         <div class="tf-box tf-feel">
-            <b>🔄 المتغير:</b> {card['variable']}<br>
-            <b>❤️ يشعر:</b> {card['feel']}
+            <b>🔄 المتغير:</b> {html.escape(str(card['variable']))}<br>
+            <b>❤️ يشعر:</b> {html.escape(str(card['feel']))}
         </div>""", unsafe_allow_html=True)
 
     st.markdown("### تحليل التطبيق وتصنيفه")
     st.markdown(f"""
-    <div class="tf-box tf-act"><b>⚙️ يتصرف:</b> {card['act']}</div>
-    <div class="golden-summary">💡 {card['summary']}</div>
+    <div class="tf-box tf-act"><b>⚙️ يتصرف:</b> {html.escape(str(card['act']))}</div>
+    <div class="golden-summary">💡 {html.escape(str(card['summary']))}</div>
     <div class="disclaimer"><strong>تنبيه منهجي:</strong> الثابت والمتغير والتفسير التالي تصنيف تحليلي داخل التطبيق، ولا يغني عن المراجعة العلمية.</div>
     """, unsafe_allow_html=True)
 
@@ -1380,16 +1384,16 @@ def show_index_result(card, matched_fields=None, key_prefix="index"):
 
     st.markdown(f"""
     <div class="hadith-card" style="padding:12px 15px;">
-        <span class="source-tag">{card['source']}</span>
+        <span class="source-tag">{html.escape(str(card['source']))}</span>
         {verification_badge(v_status)}
-        <span style="color:#666;font-size:13px;"> الراوي: {card['narrator']} · البعد: {card['dim']}</span>
-        <h4 style="color:#0d4d3d;margin:9px 0 5px 0;">«{card['text']}»</h4>
-        <p style="margin:4px 0;"><b>الملخص:</b> {card['summary']}</p>
+        <span style="color:#666;font-size:13px;"> الراوي: {html.escape(str(card['narrator']))} · البعد: {html.escape(str(card['dim']))}</span>
+        <h4 style="color:#0d4d3d;margin:9px 0 5px 0;">«{html.escape(str(card['text']))}»</h4>
+        <p style="margin:4px 0;"><b>الملخص:</b> {html.escape(str(card['summary']))}</p>
         <p style="margin:4px 0;font-size:12px;">
             <a href="{v_url}" target="_blank" rel="noopener noreferrer" style="color:#0d4d3d;">🔗 بحث النص في الدرر السنية</a>
             ｜ <span style="color:#888;">{card_id(card)}</span>
         </p>
-        {f'<p style="margin:4px 0;color:#6b5710;font-size:13px;"><b>سبب الظهور:</b> {match_text}</p>' if match_text else ''}
+        {f'<p style="margin:4px 0;color:#6b5710;font-size:13px;"><b>سبب الظهور:</b> {html.escape(match_text)}</p>' if match_text else ''}
     </div>
     """, unsafe_allow_html=True)
 
@@ -1409,13 +1413,13 @@ def show_index_result(card, matched_fields=None, key_prefix="index"):
         st.download_button(
             "تنزيل البطاقة للنسخ",
             data=card_to_markdown(card),
-            file_name=f"hadith-card-{abs(hash(cid))}.md",
+            file_name=f"hadith-card-{hashlib.md5(cid.encode('utf-8')).hexdigest()[:8]}.md",
             mime="text/markdown",
             key=f"download_{key_prefix}_{cid}",
             width="stretch"
         )
         with st.expander("عرض التحليل الكامل للبطاقة"):
-            show_card(card)
+            show_card(card, show_header=False)
     
 # ═══════════════════════════════════════════════════════
 # الصفحة 1: الرئيسية
@@ -2049,11 +2053,10 @@ def index_page():
             )
         with filter_col2:
             search_source = st.selectbox(
-                "حسب المرجع — غير متاح حاليًا",
+                "حسب المرجع",
                 ["كل المصادر"] + reference_labels,
                 key="index_search_source",
-                disabled=True,
-                help="ستُفعّل تصفية المراجع عند ربط مصادر قابلة للبحث داخل التطبيق."
+                help="صفِّ النتائج حسب الكتاب المصدر (البخاري، مسلم، الترمذي...)"
             )
         with filter_col3:
             result_limit = st.selectbox(
@@ -2072,19 +2075,10 @@ def index_page():
                 width="stretch"
             )
         with note_col:
-            st.caption("التصفية حسب المرجع معطّلة مؤقتًا؛ ستظهر أسماء المراجع وتُفعّل عند إضافة ربط المصدر.")
-
-        with st.expander("عرض أسماء المراجع غير المتاحة حاليًا"):
-            for reference_index, reference_name in enumerate(reference_labels):
-                st.checkbox(
-                    f"{reference_name} — غير متاح حاليًا",
-                    value=False,
-                    key=f"disabled_reference_search_{reference_index}",
-                    disabled=True
-                )
+            st.caption("يمكنك الجمع بين تصفية البُعد والمرجع لتضييق النتائج بدقة.")
 
         dim_filter = None if search_dim == "كل الأبعاد" else search_dim
-        source_filter = None
+        source_filter = None if search_source == "كل المصادر" else search_source
 
         if query.strip():
             ranked_results = ranked_search_hadith_cards(query, result_limit, dim_filter, source_filter)
@@ -2100,7 +2094,7 @@ def index_page():
 
     with tab2:
         st.markdown("### تصنيف البطاقات حسب البُعد والمرجع والعدد")
-        st.caption("اختر البُعد وعدد البطاقات. تصفية المراجع معروضة للتوضيح لكنها مجمّدة حتى تفعيل المصادر.")
+        st.caption("اختر البُعد وعدد البطاقات، ويمكنك تضييق النتائج بمرجع محدد.")
         reference_labels = sorted({str(c["source"]).split(" (", 1)[0] for c in HADITH_CARDS})
         browse_col_dim, browse_col_source, browse_col_limit = st.columns(3)
         with browse_col_dim:
@@ -2111,11 +2105,10 @@ def index_page():
             )
         with browse_col_source:
             browse_source = st.selectbox(
-                "حسب المرجع — غير متاح حاليًا:",
-                reference_labels or ["لا توجد مراجع"],
+                "حسب المرجع:",
+                ["كل المراجع"] + reference_labels,
                 key="index_browse_source",
-                disabled=True,
-                help="سيُفعّل هذا الاختيار بعد إضافة ربط مباشر بالمصادر."
+                help="صفِّ البطاقات المعروضة حسب الكتاب المصدر."
             )
         with browse_col_limit:
             browse_limit = st.selectbox(
@@ -2125,28 +2118,10 @@ def index_page():
                 format_func=lambda n: f"{n} حديث" if n == 1 else f"{n} أحاديث",
                 key="index_browse_limit"
             )
-        disabled_count_max = max(11, len(HADITH_CARDS))
-        with st.expander("خيارات العدد الأكبر من 10 — مجمّدة وغير متاحة"):
-            st.caption(f"جميع القيم من 11 إلى {disabled_count_max} مجمّدة؛ الحد العملي لكل بُعد هو 10 أحاديث.")
-            st.selectbox(
-                "عدد الأحاديث غير المتاح لكل بُعد:",
-                list(range(11, disabled_count_max + 1)),
-                index=0,
-                disabled=True,
-                key="index_disabled_count_options",
-                help="لا توجد حاليًا أكثر من عشرة أحاديث مسجلة لكل بُعد."
-            )
-
-        with st.expander("عرض أسماء المراجع غير المتاحة حاليًا"):
-            for reference_index, reference_name in enumerate(reference_labels):
-                st.checkbox(
-                    f"{reference_name} — غير متاح حاليًا",
-                    value=False,
-                    key=f"disabled_reference_browse_{reference_index}",
-                    disabled=True
-                )
 
         dim_cards = [c for c in HADITH_CARDS if c["dim"] == browse_dim]
+        if browse_source != "كل المراجع":
+            dim_cards = [c for c in dim_cards if str(c["source"]).startswith(browse_source)]
         dim_cards = dim_cards[:min(max(int(browse_limit), 1), 10)]
         st.markdown(f"**تُعرض {len(dim_cards)} من أصل {sum(c['dim'] == browse_dim for c in HADITH_CARDS)} بطاقات في بُعد {browse_dim} (الحد الأقصى 10):**")
         if not dim_cards:
@@ -2346,7 +2321,7 @@ def analysis_page():
     st.markdown("### اختر نوع التحليل")
     mode_col1, mode_col2 = st.columns(2)
     with mode_col1:
-        st.info("**⚡ التحليل الفوري**\n\nبحث محلي سريع في فهرس البطاقات وقاعدة البخاري المتاحة، دون الحاجة إلى مفتاح API.")
+        st.info("**⚡ التحليل الفوري**\n\nبحث محلي سريع في فهرس البطاقات وقاعدة الأحاديث (البخاري ومسلم) المتاحة، دون الحاجة إلى مفتاح API.")
     with mode_col2:
         st.info("**🧠 التحليل الذكي**\n\nتحليل أوسع عبر Gemini، وقد يحتاج إلى مفتاح API ووقت أطول. لا يُعد بديلًا عن التحقق الشرعي.")
 
@@ -2360,15 +2335,20 @@ def analysis_page():
         if not hadith_input.strip():
             st.warning("⚠️ أدخل نص حديث أولًا")
         else:
-            with st.spinner("🔍 يبحث في الفهرس وقاعدة البخاري..."):
+            db_status = collections_status()
+            db_missing = [label for label, count in db_status.items() if count == 0]
+            if db_missing:
+                st.warning("⚠️ قاعدة غير محمّلة: " + "، ".join(db_missing) +
+                           " — تأكد من وجود ملفات JSON المطلوبة بجانب التطبيق.")
+            with st.spinner("🔍 يبحث في الفهرس وقاعدة الأحاديث..."):
                 ranked_cards = ranked_search_hadith_cards(hadith_input, limit=10)
                 cards = [item[2] for item in ranked_cards]
-                bukhari = search_bukhari(hadith_input) if bukhari_stats() > 0 else []
+                db_hits = search_hadith_db(hadith_input) if hadith_db_total() > 0 else []
 
             st.session_state["last_instant_input"] = hadith_input
             st.session_state["last_instant_cards"] = cards
 
-            if cards or bukhari:
+            if cards or db_hits:
                 st.success("✅ اكتمل التحليل الفوري من المصادر المحلية المتاحة")
                 st.caption("النتائج التالية تساعد على الاستكشاف، ولا تُنشئ حكمًا شرعيًا جديدًا.")
 
@@ -2386,13 +2366,14 @@ def analysis_page():
                             st.markdown(f"**الغاية**\n\n{card['goal']}")
                         show_index_result(card, matched_fields, key_prefix="analysis")
 
-                if bukhari:
-                    st.markdown(f"### 📗 نتائج من صحيح البخاري ({len(bukhari)} نتيجة)")
-                    for h in bukhari[:5]:
-                        with st.expander(f"حديث رقم {h['number']} — {h['book']}"):
+                if db_hits:
+                    st.markdown(f"### 📗 نتائج من قاعدة الأحاديث — البخاري ومسلم ({len(db_hits)} نتيجة)")
+                    for h in db_hits[:5]:
+                        coll_label = next((i["label"] for k, i in COLLECTIONS.items() if k == h["collection"]), h["collection"])
+                        with st.expander(f"{coll_label} — حديث رقم {h['number']} — {h['book']}"):
                             st.markdown(f"**النص:** {h['text']}")
-                            st.markdown(f"<span class='source-tag'>صحيح البخاري ({h['number']})</span>", unsafe_allow_html=True)
-                            st.info("هذا النص موجود في البخاري، لكنه غير مربوط حاليًا ببطاقة تحليلية.")
+                            st.markdown(f"<span class='source-tag'>{html.escape(coll_label)} ({h['number']})</span>", unsafe_allow_html=True)
+                            st.info("هذا النص موجود في القاعدة، لكنه غير مربوط حاليًا ببطاقة تحليلية.")
                 else:
                     st.info("لم يُعثر على نتيجة محلية مطابقة. جرّب عبارة أقصر أو كلمة مقترحة، ثم امسح النص وأعد المحاولة.")
                 st.markdown("يمكنك التحقق من النص في [الدرر السنية](https://dorar.net/) أو [المكتبة الشاملة](https://shamela.ws/).")
@@ -2517,7 +2498,42 @@ def guide_page():
     5. التمييز الصارم بين الثابت والمتغير.
     </div>
     """, unsafe_allow_html=True)
-    
+
+    methodology_md = """# منهجية نظام استكشاف منهج النبي ﷺ
+
+## الفكرة المركزية
+النبي ﷺ شخصية واحدة عاش في زمن واحد ومكان واحد:
+- إذا ذكر متغيرًا ← غالبًا يخدم ثابتًا.
+- إذا ذكر ثابتًا ← غالبًا لتحقيق غاية.
+
+الفائدة الكبرى: استخراج المتغيرات التي تسبب الشبهات أو سوء الفهم، فنوضحها ونعالجها بإشراف علماء الدين — فيُحمى الثابت من التحريف والمتغير من التقديس.
+
+## المنهجية السبع خطوات
+1. **التعريف:** «ديننا له ثوابت لا تتغير ومتغيرات تتغير — الثوابت أصل والمتغيرات تطبيق». (مثال: الثابت: الصدق. المتغير: كيف نصدق؟)
+2. **التمييز:** ثلاثة أسئلة: هل يتغير بتغير الزمان؟ إذا أزلته هل يبقى الدين؟ في المركز أم الهامش؟ (مثال: اللباس: الستر ثابت — النوع واللون متغير.)
+3. **الحذف:** نحذف عنصرًا ونرى: هل يبقى الدين؟ (مثال: احذف الصلاة ← لا يبقى الدين، فهي ثابتة.)
+4. **الضغط:** نختبر أنفسنا تحت الغضب والخوف والشهوة والفقد. (مثال: عند الغضب: الثابت (لا نظلم) — المتغير (كيف نعبر).)
+5. **الكتابة:** نكتب دستورنا: ثوابتنا ومتغيراتنا. (مثال: التوحيد والصدق والعدل ثوابت.)
+6. **الحياة:** نعيش الثوابت ونبدّل المتغيرات حسب زماننا ومكاننا. (مثال: الصلاة ثابتة — نصلي في مسجد وبيت وعمل.)
+7. **التعليم:** نعلّم غيرنا: ما الثابت؟ ما المتغير؟ وكيف يفرّقون؟ (مثال: علّم ابنك: الصدق ثابت — طريقة الكلام متغيرة.)
+
+## ضوابط السلامة (إلزامية)
+1. لا حكم على الحديث (لا تصحيح ولا تضعيف).
+2. لا فتوى — الإحالة للمختصين.
+3. لا هلوسة — عند الشك يُقال: «لم أتحقق من هذا الحديث».
+4. الإحالة الإلزامية للمصدر (الدرر السنية / المكتبة الشاملة).
+5. التمييز الصارم بين الثابت والمتغير.
+
+> التنبيه: التصنيف والتحليل في هذا النظام تصنيف تحليلي داخل التطبيق، ولا يغني عن المراجعة العلمية.
+"""
+    st.download_button(
+        "⬇️ تنزيل المنهجية (ملف Markdown)",
+        data=methodology_md,
+        file_name="methodology.md",
+        mime="text/markdown",
+        width="stretch"
+    )
+
 # ═══════════════════════════════════════════════════════
 # التنقل العلوي + التشغيل
 # ═══════════════════════════════════════════════════════
@@ -2531,6 +2547,8 @@ pg = st.navigation(
     [pg_home, pg_dims, pg_index, pg_analysis, pg_guide],
     position="top"
 )
+
+pg.run()
 
 # ═══════════════════════════════════════════════════════
 # التذييل (يظهر أسفل كل صفحة)
@@ -2561,5 +2579,3 @@ st.markdown("""
     </small>
 </div>
 """, unsafe_allow_html=True)
-
-pg.run()
